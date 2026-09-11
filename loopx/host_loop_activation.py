@@ -5,9 +5,11 @@ from typing import Any
 from .agent_registry import normalize_registered_agents
 from .agy_goal_mode import AGY_ACCEPTED_INPUTS
 from .control_plane.scheduler.execution_context import SchedulerRuntimeProfile
+from .devin_cli_goal_mode import DEVIN_CLI_AGENT_TYPE_CATALOG_ENTRY
 from .host_loop_activation_skill_facade import (
     agy_cli_activation,
     cursor_agent_activation,
+    devin_cli_activation,
     gemini_cli_activation,
     kiro_cli_activation,
     zcode_activation,
@@ -58,6 +60,7 @@ def scheduler_command_binding_for_agent_type(
         "zcode": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
         "agy": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
         "kiro-cli": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
+        "devin-cli": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
         "deepseek-harness": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
         "deepseek-harness-native": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
     }.get(canonical)
@@ -87,6 +90,7 @@ SUPPORTED_AGENT_TYPES = [
     "zcode",
     "agy",
     "kiro-cli",
+    "devin-cli",
     "deepseek-harness",
     "deepseek-harness-native",
     "manual",
@@ -270,6 +274,7 @@ AGENT_TYPE_CATALOG: dict[str, dict[str, Any]] = {
         "accepted_inputs": list(AGY_ACCEPTED_INPUTS),
     },
     "kiro-cli": KIRO_CLI_AGENT_TYPE_CATALOG_ENTRY,
+    "devin-cli": DEVIN_CLI_AGENT_TYPE_CATALOG_ENTRY,
     "deepseek-harness": {
         "display_name": "DeepSeek Harness",
         "host_loop": "DeepSeek Harness headless/automation loop gated by LoopX quota",
@@ -376,6 +381,11 @@ HOST_SURFACE_TO_AGENT_TYPE = {
     "antigravity-cli": "agy",
     "kiro-cli": "kiro-cli",
     "kiro": "kiro-cli",
+    "devin-cli": "devin-cli",
+    "devin_cli": "devin-cli",
+    "devin cli": "devin-cli",
+    "devincli": "devin-cli",
+    "devin": "devin-cli",
     "deepseek-harness": "deepseek-harness",
     "dsh": "deepseek-harness",
     "deepseek-harness-native": "deepseek-harness-native",
@@ -514,6 +524,7 @@ def _heartbeat_commands(
         "zcode": "ZCode agent loop gated by LoopX",
         "agy": "Antigravity CLI agent loop with advisory LoopX quota pacing",
         "kiro-cli": "Kiro CLI native /goal loop with advisory LoopX quota pacing",
+        "devin-cli": "Devin CLI native /loop diff-review loop with advisory LoopX quota pacing",
         "deepseek-harness": "DeepSeek Harness automation loop gated by LoopX",
         "deepseek-harness-native": "DeepSeek Harness same-session plugin loop gated by LoopX",
         "manual": "External scheduler or manual shell LoopX poll",
@@ -1243,6 +1254,8 @@ def build_host_loop_activation_packet(
         surface = agy_cli_activation(commands, cli_bin)
     elif canonical == "kiro-cli":
         surface = kiro_cli_activation(commands, cli_bin)
+    elif canonical == "devin-cli":
+        surface = devin_cli_activation(commands, cli_bin)
     elif canonical == "deepseek-harness":
         surface = _deepseek_harness_activation(commands)
     elif canonical == "deepseek-harness-native":

@@ -24,6 +24,10 @@ from .kiro_cli_goal_mode import (
 from .kiro_cli_goal_mode import (
     SKILLS_ROOT_LABEL as KIRO_CLI_SKILLS_ROOT_LABEL,
 )
+from .devin_cli_goal_mode import (
+    DEVIN_CLI_LOOP_COMMAND,
+    SKILLS_ROOT_LABEL as DEVIN_CLI_SKILLS_ROOT_LABEL,
+)
 from .project_prompt import (
     render_available_capability_args,
     render_codex_cli_install_preflight,
@@ -63,6 +67,8 @@ def _surface_install_command(agent_type: str, cli_bin: str, project: str) -> str
         return f"{shell_arg(cli_bin)} slash-commands --install --surface agy"
     if agent_type == "kiro-cli":
         return f"{shell_arg(cli_bin)} slash-commands --install --surface kiro-cli"
+    if agent_type == "devin-cli":
+        return f"{shell_arg(cli_bin)} slash-commands --install --surface devin-cli"
     if agent_type == "pi":
         # The slash-commands installer resolves the Pi extension target through
         # --pi-project; pass the resolved project so the command stays correct
@@ -294,6 +300,7 @@ def _bootstrap_pack_command(
         "zcode": "zcode",
         "agy": "agy",
         "kiro-cli": "kiro-cli",
+        "devin-cli": "devin-cli",
         "deepseek-harness": "deepseek-harness",
         "deepseek-harness-native": "deepseek-harness-native",
         "ark-managed-agent": "ark-managed-agent",
@@ -389,6 +396,18 @@ def _start_instruction(agent_type: str) -> str:
             "(`python -m loopx.dsh_goal_mode`; the legacy "
             "`scripts/dsh_turn_host_adapter.py` launcher still works) as the "
             "generic-cli host adapter; every tick starts from `quota should-run`."
+        )
+    if agent_type == "devin-cli":
+        return (
+            f"Invoke the LoopX skill from `{DEVIN_CLI_SKILLS_ROOT_LABEL}` via "
+            f"`/loopx <task>`; after todo writeback, bind the objective with "
+            f"the native `{DEVIN_CLI_LOOP_COMMAND} <task_body>` command (Devin "
+            f"CLI re-runs the prompt and auto-reviews the diff in a loop; the "
+            f"loop requires clean git state to start, so commit or stash "
+            f"unrelated changes first), start every following turn and loop "
+            f"iteration with `quota should-run`, and re-arm one further "
+            f"bounded `{DEVIN_CLI_LOOP_COMMAND}` invocation only when quota "
+            f"allows more work."
         )
     if agent_type == "deepseek-harness-native":
         return (
