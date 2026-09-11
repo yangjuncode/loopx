@@ -199,6 +199,160 @@ def test_installed_skill_front_matter_keeps_names_unquoted(tmp_path: Path) -> No
     assert 'description: "' in research  # contains ": ", illegal unquoted
 
 
+def test_project_scope_installs_into_devin_skills_in_project_dir(
+    tmp_path: Path,
+) -> None:
+    """Project scope writes to .devin/skills in the project directory, not
+    the global ~/.config/devin/skills root. Only that project's Devin CLI
+    sessions discover the skill; other projects are unaffected."""
+    project = tmp_path / "my-project"
+    project.mkdir()
+    payload = install_slash_commands(
+        execute=True,
+        surfaces=[HOST_SURFACE],
+        devin_scope="project",
+        devin_project=str(project),
+        devin_home=str(tmp_path / "global-devin-home"),
+    )
+    assert payload["ok"] is True
+    assert payload["summary"]["devin_cli_scope"] == "project"
+    project_skill = project / ".devin" / "skills" / "loopx" / "SKILL.md"
+    assert project_skill.is_file(), "project scope must write into .devin/skills"
+    assert not (tmp_path / "global-devin-home" / "skills").exists(), (
+        "project scope must not touch the global root"
+    )
+    assert payload["summary"]["devin_cli_skill_dir"] == str(
+        project / ".devin" / "skills"
+    )
+
+    # Uninstall from project scope must remove the same files.
+    removed = install_slash_commands(
+        execute=True,
+        surfaces=[HOST_SURFACE],
+        uninstall=True,
+        devin_scope="project",
+        devin_project=str(project),
+        devin_home=str(tmp_path / "global-devin-home"),
+    )
+    assert removed["ok"] is True
+    assert not project_skill.exists()
+
+
+def test_agents_project_scope_installs_into_agents_skills_in_project_dir(
+    tmp_path: Path,
+) -> None:
+    """agents-project scope writes to .agents/skills in the project directory
+    — the cross-host .agents standard path. Any host supporting .agents
+    (Devin CLI, and others) discovers skills there, not just Devin."""
+    project = tmp_path / "my-project"
+    project.mkdir()
+    payload = install_slash_commands(
+        execute=True,
+        surfaces=[HOST_SURFACE],
+        devin_scope="agents-project",
+        devin_project=str(project),
+        devin_home=str(tmp_path / "global-devin-home"),
+    )
+    assert payload["ok"] is True
+    assert payload["summary"]["devin_cli_scope"] == "agents-project"
+    project_skill = project / ".agents" / "skills" / "loopx" / "SKILL.md"
+    assert project_skill.is_file(), "agents-project scope must write into .agents/skills"
+    assert not (project / ".devin" / "skills").exists(), (
+        "agents-project scope must not touch .devin/skills"
+    )
+    assert not (tmp_path / "global-devin-home" / "skills").exists(), (
+        "agents-project scope must not touch the global root"
+    )
+    assert payload["summary"]["devin_cli_skill_dir"] == str(
+        project / ".agents" / "skills"
+    )
+
+    # Uninstall must remove the same files.
+    removed = install_slash_commands(
+        execute=True,
+        surfaces=[HOST_SURFACE],
+        uninstall=True,
+        devin_scope="agents-project",
+        devin_project=str(project),
+        devin_home=str(tmp_path / "global-devin-home"),
+    )
+    assert removed["ok"] is True
+    assert not project_skill.exists()
+
+
+def test_agents_global_scope_installs_into_home_agents_skills(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """agents-global scope writes to ~/.agents/skills — the cross-host .agents
+    standard global path. It is shared across all projects but not tied to
+    Devin's own ~/.config/devin root."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    payload = install_slash_commands(
+        execute=True,
+        surfaces=[HOST_SURFACE],
+        devin_scope="agents-global",
+        devin_home=str(tmp_path / "devin-home"),
+    )
+    assert payload["ok"] is True
+    assert payload["summary"]["devin_cli_scope"] == "agents-global"
+    agents_skill = tmp_path / "home" / ".agents" / "skills" / "loopx" / "SKILL.md"
+    assert agents_skill.is_file(), "agents-global must write into ~/.agents/skills"
+    assert not (tmp_path / "devin-home" / "skills").exists(), (
+        "agents-global must not touch ~/.config/devin/skills"
+    )
+    assert payload["summary"]["devin_cli_skill_dir"] == str(
+        tmp_path / "home" / ".agents" / "skills"
+    )
+
+    removed = install_slash_commands(
+        execute=True,
+        surfaces=[HOST_SURFACE],
+        uninstall=True,
+        devin_scope="agents-global",
+        devin_home=str(tmp_path / "devin-home"),
+    )
+    assert removed["ok"] is True
+    assert not agents_skill.exists()
+
+
+def test_global_scope_is_the_default_when_scope_omitted(tmp_path: Path) -> None:
+    """Backward compatibility: when devin_scope is None (not specified), the
+    installer writes to the global root, exactly as it did before the
+    --devin-scope option existed."""
+    payload = install_slash_commands(
+        execute=True,
+        surfaces=[HOST_SURFACE],
+        devin_home=str(tmp_path / "devin-home"),
+    )
+    assert payload["ok"] is True
+    assert payload["summary"]["devin_cli_scope"] is None
+    assert (tmp_path / "devin-home" / "skills" / "loopx" / "SKILL.md").is_file()
+
+
+def test_project_scope_preserves_user_owned_skill(tmp_path: Path) -> None:
+    """Project scope shares .devin/skills with the user's own skills; an
+    unmarked file must never be overwritten, and a managed file is upgraded."""
+    project = tmp_path / "proj"
+    skill_path = project / ".devin" / "skills" / "loopx" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("user-owned skill body\n", encoding="utf-8")
+
+    payload = install_slash_commands(
+        execute=True,
+        surfaces=[HOST_SURFACE],
+        devin_scope="project",
+        devin_project=str(project),
+    )
+    statuses = {
+        (item["surface"], item["command"]): item["status"]
+        for item in payload["installed"]
+    }
+    assert statuses[(HOST_SURFACE, "/loopx")] == "skipped_user_file"
+    assert skill_path.read_text(encoding="utf-8") == "user-owned skill body\n"
+
+
 def test_installer_preserves_user_owned_devin_skill(tmp_path: Path) -> None:
     """The skills root is shared with the user's own skills; an unmarked file
     must never be overwritten, and a rerun over a managed file is a no-op."""

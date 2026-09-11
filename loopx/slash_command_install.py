@@ -772,6 +772,8 @@ def install_slash_commands(
     agy_home: str | None = None,
     kiro_home: str | None = None,
     devin_home: str | None = None,
+    devin_scope: str | None = None,
+    devin_project: str | None = None,
     pi_project: str | None = None,
 ) -> dict[str, Any]:
     specs = _command_prompt_specs(cli_bin=cli_bin, include_legacy_aliases=include_legacy_aliases)
@@ -785,6 +787,7 @@ def install_slash_commands(
     agy_root = _agy_home(agy_home)
     kiro_root = _kiro_home(kiro_home)
     devin_root = _devin_home(devin_home)
+    devin_project_root = Path(devin_project or ".").expanduser().resolve()
     pi_project_root = Path(pi_project or ".").expanduser().resolve()
     installed: list[dict[str, Any]] = []
 
@@ -1034,19 +1037,30 @@ def install_slash_commands(
         )
 
     if "devin-cli" in effective_surfaces:
-        # Devin CLI follows XDG conventions: global skills live under
-        # ~/.config/devin/skills/<name>/SKILL.md (or %APPDATA%\devin\skills on
-        # Windows) and project skills under .devin/skills/<name>/SKILL.md.
-        # The host documents no dedicated home override, but XDG_CONFIG_HOME
-        # relocates the whole ~/.config tree, so the resolver honours it:
-        # installing into ~/.config while the active profile lives elsewhere
-        # would report a success the running host never discovers. Skills are
-        # exposed as `/<skill-name>` slash commands, so the reported invocation
-        # is the slash form the user actually types.
+        # Devin CLI discovers skills from multiple roots:
+        #   ~/.config/devin/skills/<name>/SKILL.md  (Devin-specific global)
+        #   .devin/skills/<name>/SKILL.md            (Devin-specific project)
+        #   ~/.agents/skills/<name>/SKILL.md         (.agents standard global)
+        #   .agents/skills/<name>/SKILL.md           (.agents standard project)
+        # The .agents paths are cross-host: any host supporting the .agents
+        # standard (Devin CLI, and others) discovers skills there. The
+        # Devin-specific paths are only read by Devin CLI. The host documents
+        # no dedicated home override, but XDG_CONFIG_HOME relocates the whole
+        # ~/.config tree, so the global resolver honours it. Skills are
+        # exposed as `/<skill-name>` slash commands, so the reported
+        # invocation is the slash form the user actually types.
+        if devin_scope == "project":
+            devin_skills_dir = devin_project_root / ".devin" / "skills"
+        elif devin_scope == "agents-global":
+            devin_skills_dir = Path.home() / ".agents" / "skills"
+        elif devin_scope == "agents-project":
+            devin_skills_dir = devin_project_root / ".agents" / "skills"
+        else:
+            devin_skills_dir = devin_root / "skills"
         _install_skill_facade(
             specs=specs,
             installed=installed,
-            skills_dir=devin_root / "skills",
+            skills_dir=devin_skills_dir,
             surface="devin-cli",
             host_surfaces=["devin-cli"],
             mechanism="devin_cli_skills",
@@ -1395,7 +1409,8 @@ def install_slash_commands(
             "zcode_skill_dir": str(zcode_root / "skills") if "zcode" in effective_surfaces else None,
             "agy_skill_dir": str(agy_root / "skills") if "agy" in effective_surfaces else None,
             "kiro_cli_skill_dir": str(kiro_root / "skills") if "kiro-cli" in effective_surfaces else None,
-            "devin_cli_skill_dir": str(devin_root / "skills") if "devin-cli" in effective_surfaces else None,
+            "devin_cli_skill_dir": str(devin_skills_dir) if "devin-cli" in effective_surfaces else None,
+            "devin_cli_scope": devin_scope if "devin-cli" in effective_surfaces else None,
             "opencode_skill_dir": str(opencode_root / "skills") if "opencode" in effective_surfaces else None,
             "opencode_command_dir": str(opencode_root / "commands") if "opencode" in effective_surfaces else None,
             "opencode_plugin_path": str(opencode_root / "plugins" / "loopx-goal.js") if "opencode" in effective_surfaces and with_goal_bridge else None,
