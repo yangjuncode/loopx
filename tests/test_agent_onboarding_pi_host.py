@@ -101,6 +101,7 @@ def test_pi_project_skill_surface_is_surface_managed(monkeypatch) -> None:
     assert "`/loopx <task>`" in instruction
     assert "loopx_goal_activate" in instruction
     assert "heartbeat task body" in instruction
+    assert "pi --approve" in instruction
 
 
 def test_pi_onboarding_renders_project_skill_commands_with_change_quality(

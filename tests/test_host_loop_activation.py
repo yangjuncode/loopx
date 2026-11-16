@@ -1263,3 +1263,68 @@ def test_codex_app_startup_saves_v2_and_loads_the_current_contract(tmp_path: Pat
     loaded = _run_activation_command(command, home=home)
     assert loaded["ok"] and not loaded.get("bootstrap")
     assert "interaction_contract" in loaded["task_body"]
+
+
+MAX_PERMISSION_SURFACES = {
+    "codex-cli": {"scope": "maximum_bypass", "enforcement": "required_start_command",
+                  "start_command": "codex --dangerously-bypass-approvals-and-sandbox"},
+    "codex-app": {"scope": "maximum_bypass", "enforcement": "host_owned_required",
+                  "host_setting": "Full Access"},
+    "codex-app-ssh": {"scope": "maximum_bypass", "enforcement": "host_owned_required",
+                      "host_setting": "Full Access"},
+    "codex-ide-plugin": {"scope": "maximum_bypass", "enforcement": "host_owned_required",
+                         "host_setting": "Full Access"},
+    "agy": {"scope": "maximum_bypass", "enforcement": "required_start_command",
+            "start_command": "agy --dangerously-skip-permissions"},
+    "antigravity-app": {"scope": "maximum_bypass", "enforcement": "host_owned_required",
+                        "host_setting": "Bypass Permissions"},
+    "devin-cli": {"scope": "maximum_bypass", "enforcement": "required_start_command",
+                  "start_command": "devin --permission-mode dangerous"},
+    "pi": {"scope": "os_user", "enforcement": "host_native_no_per_tool_approval",
+           "start_command": "pi --approve"},
+    "deepseek-harness": {"scope": "maximum_bypass", "enforcement": "adapter_enforced",
+                         "environment": {"DSH_PERMISSION_MODE": "danger-full-access"}},
+    "deepseek-harness-native": {"scope": "maximum_bypass", "enforcement": "host_owned_required",
+                                "environment": {"DSH_PERMISSION_MODE": "danger-full-access"}},
+}
+
+OTHER_SURFACES_WITHOUT_EXECUTION_PERMISSION = [
+    "claude-code", "kiro-cli", "gemini-cli", "cursor-agent", "zcode", "opencode", "manual",
+]
+
+
+@pytest.mark.parametrize("agent_type", sorted(MAX_PERMISSION_SURFACES))
+def test_execution_surfaces_carry_a_structured_maximum_permission(agent_type: str) -> None:
+    """Every execution entry in this controlled environment must name its
+    authorized maximum permission and how it is enforced — a flat sentence
+    cannot be checked by the surfaces that consume the packet."""
+    packet = build_host_loop_activation_packet(agent_type=agent_type, goal_id="perm-goal")
+    entry = packet["host_mutation"]["execution_permission"]
+    expected = MAX_PERMISSION_SURFACES[agent_type]
+    assert entry["scope"] == expected["scope"]
+    assert entry["mode"]
+    assert entry["owner"]
+    assert entry["enforcement"] == expected["enforcement"]
+    carrier = expected.get("start_command") or expected.get("environment") or expected.get(
+        "host_setting"
+    )
+    if "start_command" in expected:
+        assert entry["start_command"] == expected["start_command"]
+        # The required start command must reach the human-facing surfaces too.
+        from loopx.agent_onboarding import _start_instruction
+        assert entry["start_command"] in _start_instruction(agent_type)
+        assert entry["start_command"] in " ".join(packet["activation_steps"])
+    if "environment" in expected:
+        assert entry["environment"] == expected["environment"]
+    if "host_setting" in expected:
+        assert expected["host_setting"] in entry["host_setting"]
+    else:
+        assert entry.get("start_command") or entry.get("host_setting") or entry.get("environment")
+    assert carrier is not None
+    assert " ".join(packet["activation_steps"]) != ""
+
+
+@pytest.mark.parametrize("agent_type", OTHER_SURFACES_WITHOUT_EXECUTION_PERMISSION)
+def test_unlisted_hosts_have_no_execution_permission_projection(agent_type: str) -> None:
+    packet = build_host_loop_activation_packet(agent_type=agent_type, goal_id="perm-goal")
+    assert "execution_permission" not in packet["host_mutation"]

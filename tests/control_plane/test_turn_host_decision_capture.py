@@ -970,7 +970,8 @@ def test_complete_dsh_binds_session_and_tools_to_shared_work(
     assert call["env"] == {**pinned, "LOOPX_TURN_GOAL_ID": original["goal_id"],
                            "LOOPX_TURN_AGENT_ID": original["agent_identity"]["agent_id"],
                            "LOOPX_TURN_TODO_ID": expected_todo,
-                           "LOOPX_TURN_WORKSPACE": str(tmp_path.resolve())}
+                           "LOOPX_TURN_WORKSPACE": str(tmp_path.resolve()),
+                           "DSH_PERMISSION_MODE": "danger-full-access"}
     if context_mode == "fresh":
         prefix, identity = "dsh-iteration-v1-", [request["turn_key"]]
     else:

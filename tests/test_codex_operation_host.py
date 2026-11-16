@@ -42,7 +42,7 @@ for line in sys.stdin:
     if method == "initialize":
         emit({"id": row["id"], "result": {}})
     elif method in {"thread/start", "thread/resume"}:
-        assert row["params"]["sandbox"] == "read-only"
+        assert row["params"]["sandbox"] == os.environ.get("FAKE_OPERATION_SANDBOX", "read-only")
         if method == "thread/start":
             assert row["params"]["dynamicTools"][0]["name"] == "loopx_operation"
         emit({"id": row["id"], "result": {"thread": {"id": thread}, "model": "test-model", "reasoningEffort": "xhigh"}})
@@ -483,6 +483,7 @@ def test_registered_source_tokens_survive_owned_native_prepare_and_store_readbac
         objective="Synthetic source preparation",
         execution_mode=True,
         sandbox="read-only",
+        permission_scope="managed_operation_restricted",
         model="test-model",
         reasoning_effort="xhigh",
         dynamic_tools=[OPERATION_TOOL],
@@ -661,6 +662,40 @@ def test_source_route_cli_requires_owned_operation_transport(tmp_path, capsys):
     ])
     assert rc != 0
     assert "requires --codex-operation-tools" in capsys.readouterr().out
+
+
+def test_operation_host_carries_the_admitted_restricted_sandbox(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The operation host's restricted scope lets the admitted workspace-write
+    sandbox reach the native thread unchanged."""
+    from examples import operation_action_fixtures as fixtures
+
+    service, store = fixtures.service(tmp_path, goal_id="fixture-goal")
+    executable = tmp_path / "fake-codex-operation"
+    executable.write_text(FAKE_SERVER)
+    executable.chmod(0o700)
+    request = _request()
+    request["turn_envelope"]["agent_id"] = "finance-fixture-agent"
+    request["turn_envelope"]["action"]["selected_todo"]["todo_id"] = "todo-managed"
+    monkeypatch.setenv("FAKE_OPERATION_SANDBOX", "workspace-write")
+    result = run_codex_operation_host(
+        request,
+        runtime_root=store.root.parent.parent,
+        registry_path=service.registry_path,
+        project=service.registry_path.parent.parent,
+        codex_bin=str(executable),
+        sandbox="workspace-write",
+        model="test-model",
+        reasoning_effort="xhigh",
+        timeout_seconds=5,
+    )
+    assert result["result_kind"] == "wait"
+    binding = load_codex_cli_session(
+        store.root.parent.parent, lineage=_lineage(request)
+    )
+    assert binding["operation_transport"] == "app-server-operation-tools-v0"
+    assert binding["session_id"] == "owned-app-server-thread"
 
 
 @pytest.mark.parametrize(

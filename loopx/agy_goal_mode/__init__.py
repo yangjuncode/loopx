@@ -81,6 +81,23 @@ AGY_GOAL_COMMAND_DESCRIPTION = (
 AGY_GOAL_COMPLETE_TOKEN = "<!-- GOAL_COMPLETE -->"
 AGY_GOAL_CANCELLED_TOKEN = "<!-- GOAL_CANCELLED -->"
 
+# agy's documented maximum-permission entry: `--dangerously-skip-permissions`
+# skips the per-tool approval prompts entirely. This deployment is a
+# user-authorized controlled environment, so goal sessions launch with it.
+AGY_BIN = "agy"
+AGY_PERMISSION_FLAG = "--dangerously-skip-permissions"
+
+
+def agy_goal_session_command(bin_name: str | None = None) -> tuple[str, ...]:
+    """Argv that starts the agy session LoopX binds under maximum permission."""
+    return (bin_name or AGY_BIN, AGY_PERMISSION_FLAG)
+
+
+AGY_GOAL_SESSION_START_COMMAND = " ".join(agy_goal_session_command())
+# The Antigravity App owns the equivalent setting in its UI; LoopX never
+# launches the App, so this names the host-owned setting, not a CLI flag.
+ANTIGRAVITY_APP_MAX_PERMISSION_SETTING = "Bypass Permissions"
+
 DEFAULT_AGY_HOME = ".gemini/antigravity-cli"
 DEFAULT_ANTIGRAVITY_CONFIG_HOME = ".gemini/config"
 ANTIGRAVITY_SKILLS_ROOT_LABEL = "~/.gemini/config/skills"
@@ -305,6 +322,13 @@ def agy_activation_extras() -> dict[str, Any]:
                 ANTIGRAVITY_SKILLS_ROOT_LABEL,
                 ANTIGRAVITY_LEGACY_SKILLS_ROOT_LABEL,
             ],
+            "execution_permission": {
+                "scope": "maximum_bypass",
+                "mode": "dangerously_skip_permissions",
+                "owner": "user",
+                "enforcement": "required_start_command",
+                "start_command": AGY_GOAL_SESSION_START_COMMAND,
+            },
             "missing_host_tool_gate": (
                 "agy's /goal loop and native wakes fire only while the CLI "
                 "session stays alive (there is no background daemon), and "
@@ -317,6 +341,10 @@ def agy_activation_extras() -> dict[str, Any]:
             ),
         },
         "extra_activation_steps": [
+            f"Run the session under the authorized maximum permission mode: "
+            f"start it with `{AGY_GOAL_SESSION_START_COMMAND}` — agy then "
+            "applies tool calls without per-tool prompts — enter the task "
+            "through `/loopx`, then continue below.",
             "Bind the objective to agy's native goal loop by running "
             "`/goal <task_body>` — agy's forced continuation audits the work "
             "at the end of each turn and keeps the agent going until every "
@@ -385,6 +413,17 @@ def antigravity_app_activation_extras(
             "host_mcp_config": ANTIGRAVITY_MCP_CONFIG_LABEL,
             "host_hooks_config": ANTIGRAVITY_HOOKS_CONFIG_LABEL,
             "host_sidecar_config": ANTIGRAVITY_SIDECAR_CONFIG_LABEL,
+            "execution_permission": {
+                "scope": "maximum_bypass",
+                "mode": "bypass_permissions",
+                "owner": "user",
+                "enforcement": "host_owned_required",
+                "host_setting": (
+                    f"Select `{ANTIGRAVITY_APP_MAX_PERMISSION_SETTING}` in the "
+                    "Antigravity app — the host owns this setting; LoopX never "
+                    "launches the app itself."
+                ),
+            },
             "in_session_schedule_call": {
                 "tool": "schedule",
                 "arguments": {
@@ -408,6 +447,7 @@ def antigravity_app_activation_extras(
             ),
         },
         "extra_activation_steps": [
+            f"In the Antigravity app, select `{ANTIGRAVITY_APP_MAX_PERMISSION_SETTING}` — the user-authorized maximum permission mode for this controlled environment — before running `/loopx`.",
             f"Install or refresh the Antigravity skill and optional MCP/hooks surface (`{cli_bin} slash-commands --install --surface antigravity-app --with-agy-mcp --with-agy-hooks` and `{cli_bin} workflow-skills --install --host-surface antigravity-app`).",
             "When a turn enters `waiting_external` or waits on CI/review checks, suspend directly with the native `schedule(DurationSeconds=<poll_after_seconds>, Prompt=...)` tool and end the turn instead of polling in a shell loop.",
             f"For background periodic heartbeats, write only `sidecar_template.sidecar_json` to `{ANTIGRAVITY_SIDECAR_CONFIG_LABEL}`. Preserve its existing id, model, permissions and host enable choice. Each fresh native heartbeat loads Core admission before work; do not persist an expanded execution body. Apply the bound `hooks_template` at the top level of hooks.json for bounded transport-error recovery; never wrap it in a `hooks` object.",

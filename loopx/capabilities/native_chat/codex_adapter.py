@@ -877,6 +877,7 @@ class CodexAppServerAdapter:
         execution_mode: bool = False,
         runtime_profile: str = "restricted",
         sandbox: str | None = None,
+        permission_scope: str | None = None,
         project_context: dict[str, str] | None = None,
         read_only_review: bool = False,
         metadata_review_context: dict[str, Any] | None = None,
@@ -929,6 +930,7 @@ class CodexAppServerAdapter:
                     execution_mode=execution_mode,
                     runtime_profile=runtime_profile,
                     sandbox=sandbox,
+                    permission_scope=permission_scope,
                     project_context=project_context,
                     read_only_review=read_only_review,
                     metadata_review_context=metadata_review_context,
@@ -1172,10 +1174,14 @@ def start_runtime_adapter(controller: ChatRuntimeController, *, work_dir: Path, 
         hard_timeout_sec=controller.hard_timeout_sec,
         execution_mode=execution_mode,
         sandbox=(
-            "read-only" if review_context else str(manager_profile["sandbox"])
+            "read-only" if review_context else None if execution_mode
+            else str(manager_profile["sandbox"])
             if manager_profile is not None
             else None
         ),
+        # Ordinary Chat execution entries always run the user's authorized
+        # maximum; only the operation host may request a restricted scope.
+        permission_scope="maximum_bypass" if execution_mode else None,
         project_context=project_context,
         read_only_review=read_only_review,
         metadata_review_context=metadata_review_context,

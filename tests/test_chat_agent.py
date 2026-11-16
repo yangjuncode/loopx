@@ -2065,6 +2065,92 @@ def test_chat_provider_override_does_not_select_managed_goal_executor_provider(m
         session.close()
 
 
+@pytest.mark.parametrize("sandbox", [None, "danger-full-access"])
+def test_execution_sessions_default_to_maximum_sandbox_and_keep_approval_never(
+    monkeypatch, tmp_path, sandbox
+):
+    process = _FakeAppServerProcess()
+    monkeypatch.setattr(chat_agent.shutil, "which", lambda _: "codex")
+    monkeypatch.setattr(chat_agent.subprocess, "Popen", lambda *a, **k: process)
+    session = chat_agent.CodexChatAgentSession.start(
+        codex_bin="codex", work_dir=tmp_path, goal_id="fixture", objective="fixture",
+        execution_mode=True, sandbox=sandbox,
+    )
+    try:
+        packets = [json.loads(line) for line in process.stdin.getvalue().splitlines()]
+        start = next(p for p in packets if p.get("method") == "thread/start")
+        assert start["params"]["sandbox"] == "danger-full-access"
+        assert start["params"]["approvalPolicy"] == "never"
+    finally:
+        session.close()
+
+
+@pytest.mark.parametrize("sandbox", ["read-only", "workspace-write"])
+def test_execution_sessions_reject_narrowing_sandbox_overrides(
+    monkeypatch, tmp_path, sandbox
+):
+    process = _FakeAppServerProcess()
+    monkeypatch.setattr(chat_agent.shutil, "which", lambda _: "codex")
+    monkeypatch.setattr(chat_agent.subprocess, "Popen", lambda *a, **k: process)
+    with pytest.raises(ValueError, match="does not accept a narrowing override"):
+        chat_agent.CodexChatAgentSession.start(
+            codex_bin="codex", work_dir=tmp_path, goal_id="fixture", objective="fixture",
+            execution_mode=True, sandbox=sandbox,
+        )
+
+
+@pytest.mark.parametrize("sandbox", ["read-only", "workspace-write"])
+def test_managed_operation_sessions_keep_their_restricted_sandbox(
+    monkeypatch, tmp_path, sandbox
+):
+    process = _FakeAppServerProcess()
+    monkeypatch.setattr(chat_agent.shutil, "which", lambda _: "codex")
+    monkeypatch.setattr(chat_agent.subprocess, "Popen", lambda *a, **k: process)
+    session = chat_agent.CodexChatAgentSession.start(
+        codex_bin="codex", work_dir=tmp_path, goal_id="fixture", objective="fixture",
+        execution_mode=True, sandbox=sandbox,
+        permission_scope="managed_operation_restricted",
+    )
+    try:
+        packets = [json.loads(line) for line in process.stdin.getvalue().splitlines()]
+        start = next(p for p in packets if p.get("method") == "thread/start")
+        assert start["params"]["sandbox"] == sandbox
+        assert start["params"]["approvalPolicy"] == "never"
+    finally:
+        session.close()
+
+
+@pytest.mark.parametrize("sandbox", ["danger-full-access", "unrestricted"])
+def test_managed_operation_scope_rejects_out_of_scope_sandboxes(
+    monkeypatch, tmp_path, sandbox
+):
+    process = _FakeAppServerProcess()
+    monkeypatch.setattr(chat_agent.shutil, "which", lambda _: "codex")
+    monkeypatch.setattr(chat_agent.subprocess, "Popen", lambda *a, **k: process)
+    with pytest.raises(ValueError, match="restricted Codex execution sandbox"):
+        chat_agent.CodexChatAgentSession.start(
+            codex_bin="codex", work_dir=tmp_path, goal_id="fixture", objective="fixture",
+            execution_mode=True, sandbox=sandbox,
+            permission_scope="managed_operation_restricted",
+        )
+
+
+def test_ordinary_sessions_stay_read_only_when_execution_is_off(monkeypatch, tmp_path):
+    process = _FakeAppServerProcess()
+    monkeypatch.setattr(chat_agent.shutil, "which", lambda _: "codex")
+    monkeypatch.setattr(chat_agent.subprocess, "Popen", lambda *a, **k: process)
+    session = chat_agent.CodexChatAgentSession.start(
+        codex_bin="codex", work_dir=tmp_path, goal_id="fixture", objective="fixture",
+    )
+    try:
+        packets = [json.loads(line) for line in process.stdin.getvalue().splitlines()]
+        start = next(p for p in packets if p.get("method") == "thread/start")
+        assert start["params"]["sandbox"] == "read-only"
+        assert start["params"]["approvalPolicy"] == "never"
+    finally:
+        session.close()
+
+
 @pytest.mark.parametrize("commentary", ["I will read the context.", '{"answer":"not-final"}'])
 @pytest.mark.parametrize("final_phase", [None, "final_answer"])
 def test_structured_turn_uses_completed_answer_not_commentary_or_partial_deltas(

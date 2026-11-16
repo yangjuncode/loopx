@@ -27,18 +27,20 @@ DEVIN_CLI_GOAL_MAX_TURNS = 50
 
 # `devin acp` serves the host as an Agent Client Protocol agent over stdio, so
 # LoopX Chat reaches it through the shared ACP adapter instead of a second
-# transport. The global `--permission-mode` flag must precede the subcommand;
-# `auto` auto-approves read-only tools only. Pinning it keeps a session that
-# inherits the owner's config from silently running a broader mode (the config
-# `permission_mode` can carry `dangerous`), while LoopX still cancels every
-# interactive permission request the auto mode cannot satisfy.
+# transport. The global `--permission-mode` flag must precede the subcommand.
+# Both entry points — the interactive goal session and the ACP agent — pin
+# `dangerous`, the host's maximum (Bypass Permissions) mode: this deployment
+# is a user-authorized controlled environment, so the host applies tool calls
+# without prompting instead of LoopX simulating approval. The shared ACP
+# adapter still cancels any interactive permission request that does arrive;
+# a dangerous session simply does not send them.
 DEVIN_CLI_BIN = "devin"
 DEVIN_CLI_CHAT_AGENT_ID = "devin-cli"
 DEVIN_CLI_CHAT_DISPLAY_NAME = "Devin CLI"
 DEVIN_CLI_CHAT_ACP_SUBCOMMAND = "acp"
 DEVIN_CLI_CHAT_ADAPTER_KIND = "acp"
-DEVIN_CLI_CHAT_PERMISSION_MODE_FLAG = "--permission-mode"
-DEVIN_CLI_CHAT_PERMISSION_MODE = "auto"
+DEVIN_CLI_PERMISSION_MODE_FLAG = "--permission-mode"
+DEVIN_CLI_PERMISSION_MODE = "dangerous"
 
 # ACP mode deliberately does not reuse the local CLI credentials, so an
 # unauthenticated `session/new` must point at the host-provided credential
@@ -95,6 +97,16 @@ def devin_cli_activation_extras() -> dict[str, Any]:
             "native_goal_clear_command": DEVIN_CLI_GOAL_CLEAR_COMMAND,
             "native_goal_max_turns": DEVIN_CLI_GOAL_MAX_TURNS,
             "native_goal_facts": list(DEVIN_CLI_NATIVE_GOAL_FACTS),
+            "permission_mode": DEVIN_CLI_PERMISSION_MODE,
+            "permission_scope": "maximum_bypass",
+            "goal_session_start_command": DEVIN_CLI_GOAL_SESSION_START_COMMAND,
+            "execution_permission": {
+                "scope": "maximum_bypass",
+                "mode": DEVIN_CLI_PERMISSION_MODE,
+                "owner": "user",
+                "enforcement": "required_start_command",
+                "start_command": DEVIN_CLI_GOAL_SESSION_START_COMMAND,
+            },
             "missing_host_tool_gate": (
                 "Devin CLI's /goal loop runs only inside its live interactive "
                 "session; LoopX cannot type, resume, or clear a goal in that "
@@ -103,16 +115,20 @@ def devin_cli_activation_extras() -> dict[str, Any]:
                 "guidance rather than a host-enforced gate. If the session "
                 "cannot keep entering through `quota should-run`, show the "
                 "exact heartbeat-prompt command for the user to run and do "
-                "not claim unattended heartbeat support."
+                "not claim unattended heartbeat support. The "
+                "`--permission-mode dangerous` launch is a user-authorized "
+                "controlled-environment configuration, not a LoopX sandbox."
             ),
         },
         "extra_activation_steps": [
-            "Bind the objective with the native goal command: the user, or the "
-            "current host through its own command path, sets "
-            f"`{DEVIN_CLI_GOAL_COMMAND} <task_body>` in this Devin CLI session. "
-            "The same session keeps working the objective across turns until it "
-            "reports complete or blocked, and the host pauses the run itself "
-            f"after {DEVIN_CLI_GOAL_MAX_TURNS} turns.",
+            f"Run the session under the authorized maximum permission mode: "
+            f"start it with `{DEVIN_CLI_GOAL_SESSION_START_COMMAND}`, enter the "
+            f"task through `/loopx`, then bind the objective with the native "
+            "goal command — the user, or the current host through its own "
+            f"command path, sets `{DEVIN_CLI_GOAL_COMMAND} <task_body>` in this "
+            "Devin CLI session. The same session keeps working the objective "
+            "across turns until it reports complete or blocked, and the host "
+            f"pauses the run itself after {DEVIN_CLI_GOAL_MAX_TURNS} turns.",
             "`/goal` alone shows the goal's status, "
             f"`{DEVIN_CLI_GOAL_RESUME_COMMAND}` continues an interrupted or "
             f"paused goal, and `{DEVIN_CLI_GOAL_CLEAR_COMMAND}` drops it.",
@@ -133,21 +149,38 @@ def devin_cli_activation_extras() -> dict[str, Any]:
     }
 
 
+def devin_cli_goal_session_command(bin_name: str | None = None) -> tuple[str, ...]:
+    """Argv that starts the interactive Devin CLI session LoopX binds.
+
+    Carries the same permission pin as the ACP agent — this deployment is a
+    user-authorized controlled environment running the host's maximum (Bypass
+    Permissions) mode, and the goal session must agree with the chat agent on
+    it. No prompt flag: the native goal loop only exists inside the live
+    interactive session.
+    """
+    return (
+        bin_name or DEVIN_CLI_BIN,
+        DEVIN_CLI_PERMISSION_MODE_FLAG,
+        DEVIN_CLI_PERMISSION_MODE,
+    )
+
+
+DEVIN_CLI_GOAL_SESSION_START_COMMAND = " ".join(devin_cli_goal_session_command())
+
+
 def devin_cli_chat_command(bin_name: str | None = None) -> tuple[str, ...]:
     """Argv that starts Devin CLI as an ACP stdio agent for LoopX Chat.
 
     ``bin_name`` is an injection point for tests and for an owner whose host
     binary is not on ``PATH`` under the documented name; the default is the
-    documented executable. The permission mode is pinned to ``auto`` — the
-    narrowest mode that still auto-approves read-only tools — so a session
-    launched from LoopX never inherits a broader ``permission_mode`` the owner
-    configured for interactive use, and mutating tools still surface as the
-    interactive permission requests LoopX cancels.
+    documented executable. The permission mode is pinned to ``dangerous`` —
+    the host's maximum, Bypass Permissions mode — under the same user-authorized
+    controlled-environment contract the interactive goal session carries.
     """
     return (
         bin_name or DEVIN_CLI_BIN,
-        DEVIN_CLI_CHAT_PERMISSION_MODE_FLAG,
-        DEVIN_CLI_CHAT_PERMISSION_MODE,
+        DEVIN_CLI_PERMISSION_MODE_FLAG,
+        DEVIN_CLI_PERMISSION_MODE,
         DEVIN_CLI_CHAT_ACP_SUBCOMMAND,
     )
 

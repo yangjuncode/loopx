@@ -741,6 +741,7 @@ class CodexChatAgentSession:
         isolate_process_tree: bool = False,
         runtime_profile: str = "restricted",
         sandbox: str | None = None,
+        permission_scope: str | None = None,
         project_context: dict[str, str] | None = None,
         read_only_review: bool = False,
         metadata_review_context: dict[str, Any] | None = None,
@@ -780,7 +781,7 @@ class CodexChatAgentSession:
             answer_review_host_read=answer_review_host_read, read_only_review=read_only_review,
             project_context=project_context, goal_id=goal_id, execution_mode=execution_mode,
             runtime_profile=runtime_profile, dynamic_tools=dynamic_tools, resume_thread_id=existing_thread_id,
-            sandbox=sandbox)
+            sandbox=sandbox, permission_scope=permission_scope)
         # Core owns the optional narrower project filesystem policy. A model,
         # transport or project config cannot substitute a profile of its choice.
         permissions_profile = policy.get("permissions_profile") if project_context is not None or metadata_review_context is not None or answer_review_context is not None else None

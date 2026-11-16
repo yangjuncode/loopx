@@ -73,6 +73,13 @@ DEFAULT_PROVIDER = MANAGED_PROVIDER_DEFAULT
 DEFAULT_REASONING_EFFORT = MANAGED_REASONING_EFFORT_DEFAULT
 DEFAULT_SESSION_ROOT_NAME = ".dsh-sessions"
 
+# Execution segments always run at dsh's maximum permission mode — a
+# user-authorized controlled-environment decision owned by this adapter. The
+# env entry is applied after any caller-pinned value so nothing can narrow it;
+# the Steward chat channel pins its own read-only env separately in chat_dsh.
+DSH_PERMISSION_MODE_ENV = "DSH_PERMISSION_MODE"
+DSH_EXECUTION_PERMISSION_MODE = "danger-full-access"
+
 
 def build_result(
     request: Mapping[str, Any],
@@ -512,6 +519,9 @@ def _execute_turn_host_request(
                 "LOOPX_TURN_AGENT_ID": str(work_identity.get("agent_id") or ""),
                 "LOOPX_TURN_TODO_ID": str(work_identity.get("todo_id") or ""),
                 "LOOPX_TURN_WORKSPACE": str(workspace),
+                # Last write wins: a caller-pinned mode cannot narrow the
+                # authorized maximum for execution segments.
+                DSH_PERMISSION_MODE_ENV: DSH_EXECUTION_PERMISSION_MODE,
             }
         outcome = normalize_runner_outcome(runner(**runner_arguments))
     except DshHostResultError as exc:

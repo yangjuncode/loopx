@@ -20,7 +20,12 @@ from .hosts.skill_facade import (
     zcode_activation,
 )
 from .devin_cli_goal_mode import DEVIN_CLI_AGENT_TYPE_CATALOG_ENTRY
+from .dsh_goal_mode.turn_host_adapter import (
+    DSH_EXECUTION_PERMISSION_MODE,
+    DSH_PERMISSION_MODE_ENV,
+)
 from .kiro_cli_goal_mode import KIRO_CLI_AGENT_TYPE_CATALOG_ENTRY
+from .pi_goal_mode import PI_GOAL_SESSION_START_COMMAND, PI_PERMISSION_FACT
 from .control_plane.todos.contract import (
     normalize_required_capabilities,
     normalize_todo_claimed_by,
@@ -35,6 +40,12 @@ SCHEMA_VERSION = "loopx_host_loop_activation_v1"
 AGENT_TYPE_CATALOG_SCHEMA_VERSION = "loopx_agent_type_catalog_v0"
 IDENTITY_SELECTION_SCHEMA_VERSION = "loopx_host_loop_identity_selection_v0"
 PI_OPTIONAL_COMPAT_ECHO = "optional compatibility echo; host authority derives the value"
+# Codex CLI's documented maximum-permission entry (Bypass Approvals and
+# Sandbox). Execution sessions in this controlled environment launch with it;
+# the visible Codex app surfaces carry the equivalent Full Access setting in
+# the host UI instead of a CLI flag.
+CODEX_CLI_MAX_PERMISSION_COMMAND = "codex --dangerously-bypass-approvals-and-sandbox"
+CODEX_HOST_MAX_PERMISSION_SETTING = "Full Access (the host's maximum permission mode)"
 HOST_MANAGED_SKILL_AGENT_TYPES = frozenset(
     {
         "ark-managed-agent",
@@ -796,12 +807,20 @@ def _codex_app_activation(commands: dict[str, str]) -> dict[str, Any]:
             "owner": "Codex App host",
             "preferred_tool": "automation_update",
             "cli_can_mutate_directly": False,
+            "execution_permission": {
+                "scope": "maximum_bypass",
+                "mode": "full_access",
+                "owner": "user",
+                "enforcement": "host_owned_required",
+                "host_setting": CODEX_HOST_MAX_PERMISSION_SETTING,
+            },
             "missing_host_tool_gate": (
                 "Codex App automation_update is unavailable; surface a pasteable "
                 "heartbeat task_body gate instead of claiming autonomous setup."
             ),
         },
         "activation_steps": [
+            f"Confirm the host runs under {CODEX_HOST_MAX_PERMISSION_SETTING} — the user-authorized maximum for this controlled environment — before delivery work starts.",
             "Run the heartbeat-prompt JSON command after project state and todos are written.",
             "Require ok=true; save the v2 bootstrap task_body through automation_update.",
             "Read commands.automation_cadence_json before choosing a schedule; for an existing automation also read its automation-id scope.",
@@ -881,6 +900,8 @@ def _codex_goal_activation(
     *,
     host_label: str,
     host_surface: str,
+    execution_permission: dict[str, Any],
+    entry_step: str,
 ) -> dict[str, Any]:
     return {
         "host_surface": host_surface,
@@ -891,12 +912,14 @@ def _codex_goal_activation(
             "owner": host_label,
             "host_command": "/goal <task_body>",
             "cli_can_mutate_directly": False,
+            "execution_permission": execution_permission,
             "missing_host_tool_gate": (
                 f"Current session cannot set {host_label} /goal; show the exact "
                 "`/goal <task_body>` text for the user to paste."
             ),
         },
         "activation_steps": [
+            entry_step,
             "Run the heartbeat-prompt JSON command after project state and todos are written.",
             "Read task_body from the JSON payload.",
             f"Set the visible {host_label} goal to `/goal <task_body>`.",
@@ -914,6 +937,18 @@ def _codex_cli_activation(commands: dict[str, str]) -> dict[str, Any]:
         commands,
         host_label="Codex CLI TUI",
         host_surface="codex_cli_visible_goal_mode",
+        execution_permission={
+            "scope": "maximum_bypass",
+            "mode": "dangerously_bypass_approvals_and_sandbox",
+            "owner": "user",
+            "enforcement": "required_start_command",
+            "start_command": CODEX_CLI_MAX_PERMISSION_COMMAND,
+        },
+        entry_step=(
+            f"Start the session with `{CODEX_CLI_MAX_PERMISSION_COMMAND}` — the "
+            "user-authorized maximum-permission entry for this controlled "
+            "environment — before running $loopx and setting the visible goal."
+        ),
     )
 
 
@@ -922,6 +957,18 @@ def _codex_app_ssh_activation(commands: dict[str, str]) -> dict[str, Any]:
         commands,
         host_label="Codex App SSH task",
         host_surface="codex_app_ssh_visible_goal_mode",
+        execution_permission={
+            "scope": "maximum_bypass",
+            "mode": "full_access",
+            "owner": "user",
+            "enforcement": "host_owned_required",
+            "host_setting": CODEX_HOST_MAX_PERMISSION_SETTING,
+        },
+        entry_step=(
+            f"In the Codex host, select {CODEX_HOST_MAX_PERMISSION_SETTING} for "
+            "this workspace — the user-authorized maximum for this controlled "
+            "environment — before running $loopx and setting the visible goal."
+        ),
     )
     activation["success_criteria"].append(
         "After three unchanged blocked turns, native update_goal marks only the "
@@ -935,6 +982,18 @@ def _codex_ide_activation(commands: dict[str, str]) -> dict[str, Any]:
         commands,
         host_label="Codex IDE plugin composer",
         host_surface="codex_ide_visible_goal_mode",
+        execution_permission={
+            "scope": "maximum_bypass",
+            "mode": "full_access",
+            "owner": "user",
+            "enforcement": "host_owned_required",
+            "host_setting": CODEX_HOST_MAX_PERMISSION_SETTING,
+        },
+        entry_step=(
+            f"In the Codex host, select {CODEX_HOST_MAX_PERMISSION_SETTING} for "
+            "this workspace — the user-authorized maximum for this controlled "
+            "environment — before running $loopx and setting the visible goal."
+        ),
     )
 
 
@@ -985,6 +1044,15 @@ def _pi_activation(commands: dict[str, str], cli_bin: str) -> dict[str, Any]:
                 "availableCapabilities": PI_OPTIONAL_COMPAT_ECHO,
             },
             "cli_can_mutate_directly": False,
+            "execution_permission": {
+                "scope": "os_user",
+                "mode": "os_user",
+                "owner": "user",
+                "enforcement": "host_native_no_per_tool_approval",
+                "start_command": PI_GOAL_SESSION_START_COMMAND,
+                "project_trust": "approved",
+                "fact": PI_PERMISSION_FACT,
+            },
             "missing_host_tool_gate": (
                 "The LoopX Pi extension or loopx_goal_activate tool is unavailable; "
                 "install the Pi surface and restart Pi before claiming autonomous "
@@ -992,6 +1060,10 @@ def _pi_activation(commands: dict[str, str], cli_bin: str) -> dict[str, Any]:
             ),
         },
         "activation_steps": [
+            f"Start the Pi session with `{PI_GOAL_SESSION_START_COMMAND}` — the "
+            "host's tools run with the launching OS user's permissions directly "
+            "and `--approve` pre-approves the project trust prompt; this is the "
+            "authorized maximum execution boundary for this controlled environment.",
             "Install or refresh the LoopX Pi surface when needed.",
             "Run the heartbeat-prompt JSON command after project state and todos are written.",
             "Call loopx_goal_activate with the activationToken from the host startup/session packet and objective from task_body; authority fields are host-derived and must not be changed by the model.",
@@ -1167,6 +1239,13 @@ def _deepseek_harness_activation(commands: dict[str, str]) -> dict[str, Any]:
             "owner": "DeepSeek Harness adapter",
             "host_loop_primitive": "deepseek-harness-sdk",
             "cli_can_mutate_directly": False,
+            "execution_permission": {
+                "scope": "maximum_bypass",
+                "mode": "danger-full-access",
+                "owner": "adapter",
+                "enforcement": "adapter_enforced",
+                "environment": {DSH_PERMISSION_MODE_ENV: DSH_EXECUTION_PERMISSION_MODE},
+            },
             "missing_host_tool_gate": (
                 "DeepSeek Harness SDK or dsh runtime is unavailable; install "
                 "`loopx[deepseek-harness]` and verify the dsh cordis configuration "
@@ -1174,6 +1253,7 @@ def _deepseek_harness_activation(commands: dict[str, str]) -> dict[str, Any]:
             ),
         },
         "activation_steps": [
+            f"The adapter launches every execution segment with `{DSH_PERMISSION_MODE_ENV}={DSH_EXECUTION_PERMISSION_MODE}` — the user-authorized maximum for this controlled environment — overriding any caller-pinned mode.",
             "Install the optional DeepSeek Harness SDK (`loopx[deepseek-harness]`).",
             "Prepare a dsh cordis.yml and any DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL settings.",
             "Run the heartbeat-prompt JSON command after project state and todos are written.",
@@ -1202,12 +1282,20 @@ def _deepseek_harness_native_activation(commands: dict[str, str]) -> dict[str, A
             "owner": "DSH LoopX plugin",
             "host_loop_primitive": "exact live Agent.followup",
             "cli_can_mutate_directly": False,
+            "execution_permission": {
+                "scope": "maximum_bypass",
+                "mode": "danger-full-access",
+                "owner": "user",
+                "enforcement": "host_owned_required",
+                "environment": {DSH_PERMISSION_MODE_ENV: DSH_EXECUTION_PERMISSION_MODE},
+            },
             "missing_host_tool_gate": (
                 "The DSH LoopX plugin or its same-session driver is unavailable; install "
                 "the plugin and run `/loopx-init` before claiming an autonomous loop."
             ),
         },
         "activation_steps": [
+            f"Launch the DSH host with `{DSH_PERMISSION_MODE_ENV}={DSH_EXECUTION_PERMISSION_MODE}` set — the user-authorized maximum permission mode for this controlled environment.",
             "Install the DSH LoopX plugin and run `/loopx-init`.",
             "Invoke the installed `loopx` skill with the original task text.",
             "Bind the exact DSH session while starting or attaching the Goal.",

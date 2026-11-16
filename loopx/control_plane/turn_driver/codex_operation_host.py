@@ -84,6 +84,7 @@ def run_codex_operation_host(
         "model": model,
         "reasoning_effort": reasoning_effort,
         "sandbox": sandbox,
+        "permission_scope": "managed_operation_restricted",
         "workspace": str(project.resolve()),
         "codex_home": str(
             Path(os.environ.get("CODEX_HOME") or "~/.codex").expanduser().resolve()
@@ -140,6 +141,7 @@ def run_codex_operation_host(
             execution_mode=True,
             isolate_process_tree=True,
             sandbox=sandbox,
+            permission_scope="managed_operation_restricted",
             model=model,
             reasoning_effort=reasoning_effort,
             resume_thread_id=binding["session_id"] if binding else None,

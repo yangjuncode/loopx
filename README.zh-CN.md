@@ -252,16 +252,16 @@ LoopX 会复用项目已有状态或连接项目，把工作规划成 Todo，并
 | --- | --- | --- |
 | Codex App | 在打开了项目的对话里用 `$loopx <复杂任务>`，或从 `/skills` 选 `loopx`。 | Codex App heartbeat；cadence 跟随 `quota should-run.scheduler_hint` |
 | Codex App over SSH | `loopx agent-onboard --agent-type codex-app-ssh --project .` | 返回的可见 `/goal <task_body>` |
-| Codex CLI | 在项目里启动 `codex`，然后用 `$loopx <复杂任务>` 或 `/skills`。 | 可见 `/goal <task_body>`；默认不走隐藏 headless 执行 |
+| Codex CLI | 在项目里启动 `codex --dangerously-bypass-approvals-and-sandbox`（本受控环境授权的最大权限入口），然后用 `$loopx <复杂任务>` 或 `/skills`。 | 可见 `/goal <task_body>`；默认不走隐藏 headless 执行 |
 | Claude Code | 安装 opt-in adapter，然后运行 `/loopx <任务>`，再运行 `/loop`。 | 由 LoopX gate 的原生 Claude Code `/loop` |
 | KunlunCode | 运行 `loopx-kunluncode connect --project . --goal-id <goal-id> --agent-id <registered-agent-id>`，添加一条有边界的 todo，再运行 `loopx-kunluncode run --project .`。 | 经 app-server 驱动原生 Goal Pro；只有 strict verification 通过后，LoopX 才写回完成与 quota |
 | OpenCode | 安装静态 command facade；recurring goal 显式 opt in `--with-goal-bridge`。 | OpenCode command facade 与显式 goal bridge |
-| Pi | 用 `loopx slash-commands --install --surface pi` 安装 opt-in goal extension，然后在受信任的 Pi 会话里用 `/loopx <任务>`。 | 由 LoopX quota gate 的可见 Pi goal extension（`loopx_goal_activate` + `agent_settled` 续跑） |
+| Pi | 用 `loopx slash-commands --install --surface pi` 安装 opt-in goal extension，然后以 `pi --approve` 启动会话并执行 `/loopx <任务>`。 | 由 LoopX quota gate 的可见 Pi goal extension（`loopx_goal_activate` + `agent_settled` 续跑） |
 | ZCode | 用 `loopx slash-commands --install --surface zcode` 安装 skill facade，然后在项目里的 ZCode 会话中调用 `$loopx` skill（或 `/loopx <复杂任务>`）。 | ZCode 会话自身的 turn loop；每次续跑都从 `quota should-run` 进入 |
-| Antigravity CLI（agy） | 用 `loopx slash-commands --install --surface agy` 安装 skill facade，然后在项目里的 `agy` 会话中调用 `loopx` skill（或 `/loopx <复杂任务>`）。 | 会话原生 `/goal` 循环（审计至 `<!-- GOAL_COMPLETE -->`）加 `schedule` 自唤醒，随会话存活；facade 指示每次 turn/唤醒都先过 `quota should-run`——advisory 节流，非宿主强制 gate |
+| Antigravity CLI（agy） | 用 `loopx slash-commands --install --surface agy` 安装 skill facade，然后在项目里以 `agy --dangerously-skip-permissions` 启动并调用 `loopx` skill（或 `/loopx <复杂任务>`）。 | 会话原生 `/goal` 循环（审计至 `<!-- GOAL_COMPLETE -->`）加 `schedule` 自唤醒，随会话存活；facade 指示每次 turn/唤醒都先过 `quota should-run`——advisory 节流，非宿主强制 gate |
 | Kiro CLI | 用 `loopx slash-commands --install --surface kiro-cli` 安装 skill facade，然后在项目里的 `kiro-cli` 会话中执行 `/loopx <复杂任务>`。 | 会话原生 `/goal --max <N> <任务> Done when: <验收条件>` 循环，验收条件写入目标语句本身（宿主由该语句推导验收标准），由宿主自己的迭代预算兜底（默认 5），并通过内置 `goal` 完成契约收口；facade 指示每次 turn 与迭代都先过 `quota should-run`——advisory 节流，非宿主强制 gate |
-| Devin CLI | 用 `loopx slash-commands --install --surface devin` 安装 skill facade，然后在项目里的 `devin` 会话中执行 `/loopx <复杂任务>`。 | 会话原生 `/goal <task_body>` 循环让同一个交互会话跨 turn 持续推进目标，直到宿主报告完成或 blocked（宿主在 50 turns 后暂停一次运行；`/goal resume` 继续被中断的目标，`/goal clear` 放弃当前目标）；facade 指示每次 turn 与原生续跑都先过 `quota should-run`——advisory 节流，非宿主强制 gate |
-| DeepSeek Harness（dsh） | 安装 [DSH 原生 Plugin](packages/dsh-loopx-plugin/README.md)，在技能选择器中点 `loopx`，然后直接描述任务；[dsh goal-mode adapter](loopx/dsh_goal_mode/README.md) 继续支持 headless turn。 | 原生同会话续跑与 GoalBar，或 headless dsh 工作段；两条路径都遵守 LoopX authority |
+| Devin CLI | 用 `loopx slash-commands --install --surface devin` 安装 skill facade，然后在项目里以 `devin --permission-mode dangerous` 启动的会话中执行 `/loopx <复杂任务>`（该受控环境授权的最大权限入口；ACP agent 使用同一 pin 启动）。 | 会话原生 `/goal <task_body>` 循环让同一个交互会话跨 turn 持续推进目标，直到宿主报告完成或 blocked（宿主在 50 turns 后暂停一次运行；`/goal resume` 继续被中断的目标，`/goal clear` 放弃当前目标）；facade 指示每次 turn 与原生续跑都先过 `quota should-run`——advisory 节流，非宿主强制 gate |
+| DeepSeek Harness（dsh） | 以 `DSH_PERMISSION_MODE=danger-full-access` 启动宿主，安装 [DSH 原生 Plugin](packages/dsh-loopx-plugin/README.md)，在技能选择器中点 `loopx`，然后直接描述任务；[dsh goal-mode adapter](loopx/dsh_goal_mode/README.md) 在 headless turn 中自行固定同一最大模式。 | 原生同会话续跑与 GoalBar，或 headless dsh 工作段；两条路径都遵守 LoopX authority |
 | Cursor、shell、自有 runner | `loopx start-goal --guided --project . --goal-text "<任务>"`，或由你的 runner 调用 LoopX。 | 你的 shell、scheduler 或 runner |
 
 可直接粘贴的完整 setup message、host-specific 路由和故障恢复见

@@ -183,10 +183,12 @@ def builtin_chat_endpoints(
         {
             # Devin CLI serves an ACP agent (`devin acp`), so it rides the same
             # ACP adapter as Kiro. The launch command pins
-            # `--permission-mode auto` — read-only tools auto-approve,
-            # everything else stays an interactive request LoopX cancels — but
-            # the host's own allow rules and read commands are not a LoopX
-            # sandbox, so the row honestly scopes to workspace_write.
+            # `--permission-mode dangerous` — the host's maximum, Bypass
+            # Permissions mode — under the user's explicit controlled-
+            # environment authorization, so the host applies tool calls without
+            # prompting and LoopX never sees an approval request to cancel.
+            # That is still not a LoopX sandbox, so the row honestly scopes to
+            # workspace_write.
             "agent_id": DEVIN_CLI_CHAT_AGENT_ID,
             "display_name": DEVIN_CLI_CHAT_DISPLAY_NAME,
             "adapter_kind": DEVIN_CLI_CHAT_ADAPTER_KIND,

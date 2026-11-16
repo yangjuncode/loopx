@@ -28,7 +28,7 @@ def register_agent_runtime_arguments(
     parser.add_argument(
         "--devin-cli-bin",
         default=devin_cli_bin,
-        help="Devin CLI executable used for ACP Agent sessions (`<bin> --permission-mode auto acp`).",
+        help="Devin CLI executable used for ACP Agent sessions (`<bin> --permission-mode dangerous acp`).",
     )
     parser.add_argument(
         "--lark-cli-bin",

@@ -40,10 +40,13 @@ from loopx.devin_cli_goal_mode import (
     DEVIN_CLI_GOAL_COMMAND,
     DEVIN_CLI_GOAL_MAX_TURNS,
     DEVIN_CLI_GOAL_RESUME_COMMAND,
+    DEVIN_CLI_GOAL_SESSION_START_COMMAND,
     DEVIN_CLI_NATIVE_GOAL_FACTS,
+    DEVIN_CLI_PERMISSION_MODE,
     SKILLS_ROOT_LABEL as DEVIN_CLI_SKILLS_ROOT_LABEL,
     devin_cli_activation_extras,
     devin_cli_chat_command,
+    devin_cli_goal_session_command,
     devin_home,
 )
 from loopx.host_loop_activation import (
@@ -303,11 +306,16 @@ def test_activation_binds_native_goal_with_advisory_quota_entry() -> None:
     assert mutation["native_goal_clear_command"] == DEVIN_CLI_GOAL_CLEAR_COMMAND
     assert mutation["native_goal_max_turns"] == DEVIN_CLI_GOAL_MAX_TURNS
     assert DEVIN_CLI_GOAL_MAX_TURNS == 50
+    # The maximum-permission launch must be recorded structurally.
+    assert mutation["permission_mode"] == "dangerous"
+    assert mutation["permission_scope"] == "maximum_bypass"
+    assert mutation["goal_session_start_command"] == DEVIN_CLI_GOAL_SESSION_START_COMMAND
     gate = mutation["missing_host_tool_gate"]
     assert "advisory" in gate
     assert "cannot" in gate
 
     steps = " ".join(packet["activation_steps"])
+    assert DEVIN_CLI_GOAL_SESSION_START_COMMAND in steps
     assert f"`{DEVIN_CLI_GOAL_COMMAND} <task_body>`" in steps
     assert str(DEVIN_CLI_GOAL_MAX_TURNS) in steps
     assert "quota should-run" in steps
@@ -323,6 +331,7 @@ def test_activation_binds_native_goal_with_advisory_quota_entry() -> None:
     )
     assert "quota should-run" in _start_instruction(HOST_SURFACE)
     assert DEVIN_CLI_GOAL_COMMAND in _start_instruction(HOST_SURFACE)
+    assert DEVIN_CLI_GOAL_SESSION_START_COMMAND in _start_instruction(HOST_SURFACE)
     assert (
         packet["entry_command_hint"]
         == f"the LoopX skill installed in {DEVIN_CLI_SKILLS_ROOT_LABEL}"
@@ -401,10 +410,10 @@ def test_dashboard_lists_devin_cli_as_a_builtin_chat_agent(tmp_path: Path) -> No
     built-in row with an adapter the runtime can start. Devin CLI serves an
     ACP agent, so the row must be ACP-shaped — and its id must be reserved, or
     an owner-local endpoint could shadow the built-in adapter. The command
-    pins `--permission-mode auto` (read-only tools only) before the `acp`
-    subcommand so the session never inherits a broader mode from the owner's
-    config; host allow rules and read commands are still not a LoopX sandbox,
-    so the row honestly scopes to workspace_write."""
+    pins `--permission-mode dangerous` (the host's maximum, Bypass Permissions
+    mode — user-authorized in this controlled environment) before the `acp`
+    subcommand; a maximum-permission host is still not a LoopX sandbox, so the
+    row honestly scopes to workspace_write."""
     controller = ChatRuntimeController(
         store=ChatSessionStore(tmp_path / "runtime"),
         codex_bin="loopx-missing-codex-for-test",
@@ -428,15 +437,23 @@ def test_dashboard_lists_devin_cli_as_a_builtin_chat_agent(tmp_path: Path) -> No
         controller.close()
 
     command = devin_cli_chat_command("devin")
-    assert command == ("devin", "--permission-mode", "auto", "acp")
+    assert command == ("devin", "--permission-mode", "dangerous", "acp")
     # The global flag must precede the subcommand, and the argv must never
-    # reach a prompt path or a broad auto-approve mode.
+    # reach a prompt path or a narrower approval mode.
     assert command.index("--permission-mode") < command.index("acp")
-    for token in ("-p", "--print", "dangerous", "accept-edits", "smart"):
+    for token in ("-p", "--print", "auto", "accept-edits", "smart"):
         assert token not in command
+    assert "dangerous" in command
     assert devin_cli_chat_command() == (
-        DEVIN_CLI_BIN, "--permission-mode", "auto", "acp"
+        DEVIN_CLI_BIN, "--permission-mode", "dangerous", "acp"
     )
+    # The ACP agent and the interactive goal session share one permission pin.
+    assert devin_cli_goal_session_command() == (
+        DEVIN_CLI_BIN, "--permission-mode", DEVIN_CLI_PERMISSION_MODE
+    )
+    assert devin_cli_chat_command() == (*devin_cli_goal_session_command(), "acp")
+    assert DEVIN_CLI_PERMISSION_MODE == "dangerous"
+    assert DEVIN_CLI_GOAL_SESSION_START_COMMAND == "devin --permission-mode dangerous"
 
     assert DEVIN_CLI_CHAT_AGENT_ID in RESERVED_AGENT_IDS
     with pytest.raises(ValueError, match="reserved"):
@@ -508,7 +525,7 @@ def test_start_adapter_dispatches_the_devin_acp_command(
         controller.close()
 
     assert captured["command"] == (
-        "devin-under-test", "--permission-mode", "auto", "acp"
+        "devin-under-test", "--permission-mode", "dangerous", "acp"
     )
     assert captured["work_dir"] == tmp_path
     assert captured["resume_thread_id"] == "devin-session-1"

@@ -282,6 +282,10 @@ def test_activation_binds_native_goal_and_wake_with_advisory_quota_entry() -> No
     assert packet["setup_command"] == _surface_install_command(HOST_SURFACE, "loopx", ".")
     assert "quota should-run" in _start_instruction(HOST_SURFACE)
     assert "/goal" in _start_instruction(HOST_SURFACE)
+    assert "agy --dangerously-skip-permissions" in _start_instruction(HOST_SURFACE)
+    assert packet["host_mutation"]["execution_permission"]["start_command"] == (
+        "agy --dangerously-skip-permissions"
+    )
     assert (
         packet["entry_command_hint"]
         == "the LoopX skill installed in ~/.gemini/antigravity-cli/skills"

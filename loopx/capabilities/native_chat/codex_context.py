@@ -223,7 +223,8 @@ def native_conversation_policy(*, root: Path, metadata_review_context: dict[str,
         answer_review_context: dict[str, object] | None, answer_review_host_read: bool,
         read_only_review: bool, project_context: dict[str, str] | None, goal_id: str | None,
         execution_mode: bool, runtime_profile: str, dynamic_tools: list[dict[str, object]] | None,
-        resume_thread_id: str | None, sandbox: str | None) -> tuple[dict[str, object], str]:
+        resume_thread_id: str | None, sandbox: str | None,
+        permission_scope: str | None = None) -> tuple[dict[str, object], str]:
     """Adapt existing Core conversation identity into the native sandbox."""
     policy = {}
     if answer_review_context is not None:
@@ -265,9 +266,26 @@ def native_conversation_policy(*, root: Path, metadata_review_context: dict[str,
             raise ValueError(
                 "trusted_owner is only valid for the non-execution manager runtime"
             )
-        selected_sandbox = sandbox or "workspace-write"
-        if selected_sandbox not in {"read-only", "workspace-write"}:
-            raise ValueError("unsupported Codex Chat execution sandbox")
+        scope = permission_scope or "maximum_bypass"
+        if scope == "maximum_bypass":
+            # Execution sessions run the host's maximum sandbox under the
+            # user's controlled-environment authorization; an execution entry
+            # cannot be narrowed by a sandbox override.
+            selected_sandbox = "danger-full-access"
+            if sandbox is not None and sandbox != selected_sandbox:
+                raise ValueError(
+                    "Codex Chat execution sandbox does not accept a narrowing override"
+                )
+        elif scope == "managed_operation_restricted":
+            # Managed operation tools were admitted for a restricted execution
+            # sandbox; only the operation host may request this scope.
+            selected_sandbox = sandbox or "workspace-write"
+            if selected_sandbox not in {"read-only", "workspace-write"}:
+                raise ValueError(
+                    "managed operation tools require a restricted Codex execution sandbox"
+                )
+        else:
+            raise ValueError("unsupported Codex Chat execution permission scope")
     else:
         # The manager profile and its actual host sandbox are one authority
         # decision.  Callers may assert the derived value, but cannot widen

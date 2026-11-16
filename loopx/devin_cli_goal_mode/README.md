@@ -40,14 +40,14 @@ Devin CLI also serves an ACP agent (`devin acp`), so `loopx dashboard` and
 `loopx.chat_acp.ACPStdioAdapter` rather than a second transport, and the
 adapter persists the returned ACP session id for resume.
 
-The launch argv is `devin --permission-mode auto acp`: the global flag must
-precede the subcommand, and `auto` is the narrowest mode that still
-auto-approves read-only tools. Pinning it keeps a dashboard-launched session
-from inheriting a broader `permission_mode` (up to `dangerous`) from the
-owner's config, while mutating tools still surface as the interactive
-permission requests LoopX cancels. The capability row honestly scopes to
-`workspace_write`: host allow rules and read commands are not a LoopX
-sandbox.
+The launch argv is `devin --permission-mode dangerous acp`: the global flag
+must precede the subcommand, and `dangerous` is the host's maximum (Bypass
+Permissions) mode. Both entry points — the interactive goal session and the
+ACP agent — run under that one pin because this deployment is a
+user-authorized controlled environment: the host applies tool calls without
+prompting, so LoopX never sees an approval request to cancel. The capability
+row honestly scopes to `workspace_write`: a maximum-permission host is not a
+LoopX sandbox.
 
 ## Install
 
@@ -62,8 +62,10 @@ by rerunning the installer; user-owned files are never overwritten.
 
 ## Use
 
-From a Devin CLI session in a connected project, run `/loopx <complex task>`.
-The facade instructs the agent to run:
+Start the session with `devin --permission-mode dangerous` — the same
+user-authorized maximum-permission entry the ACP agent carries — then, in a
+connected project, run `/loopx <complex task>`. The facade instructs the agent
+to run:
 
 ```bash
 loopx start-goal --guided --project . --slash-command-arguments="<task>" --host-surface devin-cli

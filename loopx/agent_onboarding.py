@@ -8,12 +8,23 @@ from .agent_registry import registered_agent_ids_from_registry
 from .bootstrap_command_pack import inspect_bootstrap_connection
 from .capabilities.change_quality.policy import change_quality_goal_policy
 from .host_loop_activation import (
+    CODEX_CLI_MAX_PERMISSION_COMMAND,
+    CODEX_HOST_MAX_PERMISSION_SETTING,
     agent_type_uses_host_managed_skills,
     build_host_loop_activation_packet,
     normalize_agent_type,
     render_agent_type_catalog_markdown,
     scheduler_command_binding_for_agent_type,
 )
+from .agy_goal_mode import (
+    AGY_GOAL_SESSION_START_COMMAND,
+    ANTIGRAVITY_APP_MAX_PERMISSION_SETTING,
+)
+from .dsh_goal_mode.turn_host_adapter import (
+    DSH_EXECUTION_PERMISSION_MODE,
+    DSH_PERMISSION_MODE_ENV,
+)
+from .pi_goal_mode import PI_GOAL_SESSION_START_COMMAND
 from .history import load_registry
 from .install_contract import NO_CLONE_INSTALL_URL
 from .devin_cli_goal_mode import (
@@ -21,6 +32,7 @@ from .devin_cli_goal_mode import (
     DEVIN_CLI_GOAL_COMMAND,
     DEVIN_CLI_GOAL_MAX_TURNS,
     DEVIN_CLI_GOAL_RESUME_COMMAND,
+    DEVIN_CLI_GOAL_SESSION_START_COMMAND,
 )
 from .devin_cli_goal_mode import (
     SKILLS_ROOT_LABEL as DEVIN_CLI_SKILLS_ROOT_LABEL,
@@ -340,15 +352,15 @@ def _bootstrap_pack_command(
 
 def _start_instruction(agent_type: str) -> str:
     if agent_type == "codex-app":
-        return "Use `$loopx <task>` or select the LoopX skill from `/skills`; Codex App should then create/update the heartbeat automation."
+        return f"In Codex App select {CODEX_HOST_MAX_PERMISSION_SETTING} for this workspace (this controlled environment's authorized maximum-permission entry), then use `$loopx <task>` or select the LoopX skill from `/skills`; Codex App should then create/update the heartbeat automation."
     if agent_type == "trae_app":
         return "Use `$loopx <task>` or select the LoopX skill from `/skills`; Trae App should then create/update the heartbeat automation."
     if agent_type == "codex-app-ssh":
-        return "Use `$loopx <task>` or select the LoopX skill from `/skills`; after todos are written, set `/goal <task_body>` in the visible Codex App task."
+        return f"In the Codex host select {CODEX_HOST_MAX_PERMISSION_SETTING} (this controlled environment's authorized maximum-permission entry), then use `$loopx <task>` or select the LoopX skill from `/skills`; after todos are written, set `/goal <task_body>` in the visible Codex App task."
     if agent_type == "codex-ide-plugin":
-        return "Use `$loopx <task>` or select the LoopX skill from `/skills`; after todos are written, set `/goal <task_body>` in the visible IDE plugin."
+        return f"In the Codex host select {CODEX_HOST_MAX_PERMISSION_SETTING} (this controlled environment's authorized maximum-permission entry), then use `$loopx <task>` or select the LoopX skill from `/skills`; after todos are written, set `/goal <task_body>` in the visible IDE plugin."
     if agent_type == "codex-cli":
-        return "Use `$loopx <task>` or select the LoopX skill from `/skills`; after todos are written, set `/goal <task_body>` in the visible TUI."
+        return f"Start the session with `{CODEX_CLI_MAX_PERMISSION_COMMAND}` (this controlled environment's authorized maximum-permission entry), then use `$loopx <task>` or select the LoopX skill from `/skills`; after todos are written, set `/goal <task_body>` in the visible TUI."
     if agent_type == "claude-code":
         return "Run `/loopx <task>` to arm LoopX, then run native `/loop`."
     if agent_type == "opencode":
@@ -356,7 +368,7 @@ def _start_instruction(agent_type: str) -> str:
     if agent_type == "traex-cli":
         return "Use `$loopx <task>` or select the LoopX skill from `/skills`; after todos are written, set `/goal <task_body>` in the visible TraeX TUI (enable `[features] goals = true` first if goal mode is off)."
     if agent_type == "pi":
-        return "Run `/loopx <task>`; after todo writeback, call `loopx_goal_activate` with the generated heartbeat task body."
+        return f"Start the session with `{PI_GOAL_SESSION_START_COMMAND}` — Pi's tools run with the OS user's permissions directly and `--approve` pre-approves project trust — then run `/loopx <task>`; after todo writeback, call `loopx_goal_activate` with the generated heartbeat task body."
     if agent_type == "gemini-cli":
         return (
             "Invoke the LoopX skill from `GEMINI_HOME/skills`; after todo writeback, "
@@ -378,7 +390,10 @@ def _start_instruction(agent_type: str) -> str:
         )
     if agent_type == "agy":
         return (
-            "Invoke the LoopX skill from the fixed agy skills root "
+            f"Start the session with `{AGY_GOAL_SESSION_START_COMMAND}` — "
+            "agy then applies tool calls without per-tool prompts, the "
+            "authorized maximum-permission entry for this controlled "
+            "environment — and invoke the LoopX skill from the fixed agy skills root "
             "`~/.gemini/antigravity-cli/skills` via `/loopx <task>`; after todo "
             "writeback, bind the objective with the native `/goal <task_body>` "
             "command (agy audits work until `<!-- GOAL_COMPLETE -->`; cancel "
@@ -390,7 +405,9 @@ def _start_instruction(agent_type: str) -> str:
         )
     if agent_type == "antigravity-app":
         return (
-            "Invoke the LoopX skill from `~/.gemini/config/skills` via `/loopx <task>`; "
+            f"In the Antigravity app select `{ANTIGRAVITY_APP_MAX_PERMISSION_SETTING}` "
+            "(the host-owned maximum permission mode for this controlled "
+            "environment), then invoke the LoopX skill from `~/.gemini/config/skills` via `/loopx <task>`; "
             "after todo writeback, start every turn with `quota should-run`, suspend "
             "directly via the native `schedule(DurationSeconds=..., Prompt=...)` tool "
             "when `waiting_external` or CI checks are pending (instead of polling), "
@@ -414,7 +431,9 @@ def _start_instruction(agent_type: str) -> str:
         )
     if agent_type == "devin-cli":
         return (
-            f"Run `/loopx <task>` (the LoopX skill installed in "
+            f"Start the session with `{DEVIN_CLI_GOAL_SESSION_START_COMMAND}` "
+            "(this controlled environment's authorized maximum-permission "
+            f"entry), then run `/loopx <task>` (the LoopX skill installed in "
             f"`{DEVIN_CLI_SKILLS_ROOT_LABEL}`); after todo writeback, the user "
             f"or the current host sets the native `{DEVIN_CLI_GOAL_COMMAND} "
             "<task_body>` in this Devin CLI session so the same session keeps "
@@ -431,11 +450,16 @@ def _start_instruction(agent_type: str) -> str:
             "`loopx turn run-once` with the `loopx.dsh_goal_mode` adapter "
             "(`python -m loopx.dsh_goal_mode`; the legacy "
             "`scripts/dsh_turn_host_adapter.py` launcher still works) as the "
-            "generic-cli host adapter; every tick starts from `quota should-run`."
+            "generic-cli host adapter — every execution segment runs with "
+            f"`{DSH_PERMISSION_MODE_ENV}={DSH_EXECUTION_PERMISSION_MODE}`, the "
+            "authorized maximum permission mode the adapter enforces itself; "
+            "every tick starts from `quota should-run`."
         )
     if agent_type == "deepseek-harness-native":
         return (
-            "Install the DSH LoopX plugin, run `/loopx-init`, then invoke the `loopx` "
+            f"Launch the DSH host with `{DSH_PERMISSION_MODE_ENV}={DSH_EXECUTION_PERMISSION_MODE}` "
+            "set (this controlled environment's authorized maximum permission mode), "
+            "install the DSH LoopX plugin, run `/loopx-init`, then invoke the `loopx` "
             "skill with the task text. The plugin driver continues the exact live "
             "DSH session only after `quota should-run` admits another step."
         )

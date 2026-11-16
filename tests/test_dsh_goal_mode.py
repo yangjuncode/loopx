@@ -259,6 +259,7 @@ def test_dsh_host_forwards_the_resolved_credential_to_the_runtime(
         "LOOPX_TURN_AGENT_ID": "a",
         "LOOPX_TURN_TODO_ID": "",
         "LOOPX_TURN_WORKSPACE": str(tmp_path.resolve()),
+        "DSH_PERMISSION_MODE": "danger-full-access",
     }
     assert calls[0]["env"] is not credential
 
@@ -1579,7 +1580,8 @@ def test_dsh_sdk_overrides_follow_each_verified_turn(
         assert env["LOOPX_TURN_GOAL_ID"] == "g"
         assert env["LOOPX_TURN_AGENT_ID"] == "a"
         assert env["LOOPX_TURN_WORKSPACE"] == str(tmp_path.resolve())
-        assert env["DSH_PERMISSION_MODE"] == "read-only"
+        # A caller-pinned mode cannot narrow the authorized execution maximum.
+        assert env["DSH_PERMISSION_MODE"] == "danger-full-access"
     assert pinned["LOOPX_TURN_TODO_ID"] == "stale-todo"
 
 
