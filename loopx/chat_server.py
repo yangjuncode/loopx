@@ -111,6 +111,7 @@ from .presentation.explore_results_api import ExploreResultsRequestMixin
 from .presentation.research_analysis_api import RESEARCH_ANALYSIS_PATH, ResearchAnalysisRequestMixin
 from .presentation.goal_source_routing import GOAL_SOURCE_LINKS_PATH, GOAL_SOURCE_STRATEGIES_PATH, GOAL_SOURCE_DOCUMENT_PATH, GoalSourceRequestMixin
 from .chat.todo_detail import TodoDetailRequestMixin
+from .devin_cli_goal_mode import DEVIN_CLI_BIN
 from .kiro_cli_goal_mode import KIRO_CLI_BIN
 from .paths import resolve_runtime_root
 from .release_manifest import release_runtime_identity
@@ -1850,6 +1851,7 @@ def serve_chat(
     codex_bin: str = "codex",
     claude_bin: str = "claude",
     kiro_cli_bin: str = KIRO_CLI_BIN,
+    devin_cli_bin: str = DEVIN_CLI_BIN,
     lark_cli_bin: str | None = None,
     startup_timeout_sec: float | None = None,
     idle_timeout_sec: float = 180.0,
@@ -1936,6 +1938,7 @@ def serve_chat(
         codex_bin=codex_bin,
         claude_bin=claude_bin,
         kiro_cli_bin=kiro_cli_bin,
+        devin_cli_bin=devin_cli_bin,
         startup_timeout_sec=startup_timeout_sec,
         idle_timeout_sec=idle_timeout_sec,
         hard_timeout_sec=hard_timeout_sec,

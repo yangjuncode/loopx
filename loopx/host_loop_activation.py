@@ -14,10 +14,12 @@ from .hosts.skill_facade import (
     agy_cli_activation,
     antigravity_app_activation,
     cursor_agent_activation,
+    devin_cli_activation,
     gemini_cli_activation,
     kiro_cli_activation,
     zcode_activation,
 )
+from .devin_cli_goal_mode import DEVIN_CLI_AGENT_TYPE_CATALOG_ENTRY
 from .kiro_cli_goal_mode import KIRO_CLI_AGENT_TYPE_CATALOG_ENTRY
 from .control_plane.todos.contract import (
     normalize_required_capabilities,
@@ -67,6 +69,7 @@ def scheduler_command_binding_for_agent_type(
         "agy": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
         "antigravity-app": SchedulerRuntimeProfile.ANTIGRAVITY_APP,
         "kiro-cli": SchedulerRuntimeProfile.KIRO_CLI_VISIBLE,
+        "devin-cli": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
         "deepseek-harness": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
         "deepseek-harness-native": SchedulerRuntimeProfile.GENERIC_CLI_AGENT_LOOP,
     }.get(canonical)
@@ -98,6 +101,7 @@ SUPPORTED_AGENT_TYPES = [
     "agy",
     "antigravity-app",
     "kiro-cli",
+    "devin-cli",
     "deepseek-harness",
     "deepseek-harness-native",
     "manual",
@@ -290,6 +294,7 @@ AGENT_TYPE_CATALOG: dict[str, dict[str, Any]] = {
     },
     "antigravity-app": ANTIGRAVITY_APP_AGENT_TYPE_CATALOG_ENTRY,
     "kiro-cli": KIRO_CLI_AGENT_TYPE_CATALOG_ENTRY,
+    "devin-cli": DEVIN_CLI_AGENT_TYPE_CATALOG_ENTRY,
     "deepseek-harness": {
         "display_name": "DeepSeek Harness",
         "host_loop": "DeepSeek Harness headless/automation loop gated by LoopX quota",
@@ -402,6 +407,9 @@ HOST_SURFACE_TO_AGENT_TYPE = {
     "agy_app": "antigravity-app",
     "kiro-cli": "kiro-cli",
     "kiro": "kiro-cli",
+    "devin-cli": "devin-cli",
+    "devin_cli": "devin-cli",
+    "devin": "devin-cli",
     "deepseek-harness": "deepseek-harness",
     "dsh": "deepseek-harness",
     "deepseek-harness-native": "deepseek-harness-native",
@@ -546,6 +554,7 @@ def _heartbeat_commands(
         "agy": "Antigravity CLI agent loop with advisory LoopX quota pacing",
         "antigravity-app": "Antigravity App schedule timer & sidecar heartbeat loop",
         "kiro-cli": "Kiro CLI native /goal loop with advisory LoopX quota pacing",
+        "devin-cli": "Devin CLI native /goal same-session loop with advisory LoopX quota pacing",
         "deepseek-harness": "DeepSeek Harness automation loop gated by LoopX",
         "deepseek-harness-native": "DeepSeek Harness same-session plugin loop gated by LoopX",
         "manual": "External scheduler or manual shell LoopX poll",
@@ -1337,6 +1346,8 @@ def build_host_loop_activation_packet(
         )
     elif canonical == "kiro-cli":
         surface = kiro_cli_activation(commands, cli_bin)
+    elif canonical == "devin-cli":
+        surface = devin_cli_activation(commands, cli_bin)
     elif canonical == "deepseek-harness":
         surface = _deepseek_harness_activation(commands)
     elif canonical == "deepseek-harness-native":

@@ -21,14 +21,14 @@ loopx project-skill install \
   --execute
 ```
 
-Use `--surface antigravity`, `--surface claude-code`, `--surface kiro-cli`,
-`--surface opencode`, or `--surface pi` for those hosts; repeat the flag to
-install multiple host-native copies in one transaction. Managed copies live
-under `.agents/skills/`, `.agent/skills/`, `.claude/skills/`, `.kiro/skills/`,
-`.opencode/skills/`, or `.pi/skills/` and are upgraded or removed through the
-same CLI. Project-local discovery does not itself activate material-store
-writes; the selected execution owner still needs explicit Material Lifecycle
-source authority.
+Use `--surface antigravity`, `--surface claude-code`, `--surface devin-cli`,
+`--surface kiro-cli`, `--surface opencode`, or `--surface pi` for those hosts;
+repeat the flag to install multiple host-native copies in one transaction.
+Managed copies live under `.agents/skills/`, `.agent/skills/`,
+`.claude/skills/`, `.devin/skills/`, `.kiro/skills/`, `.opencode/skills/`, or
+`.pi/skills/` and are upgraded or removed through the same CLI. Project-local
+discovery does not itself activate material-store writes; the selected
+execution owner still needs explicit Material Lifecycle source authority.
 
 ## Activation Gate
 

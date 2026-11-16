@@ -157,6 +157,7 @@ loopx project-skill install \
 - `codex` -> `.agents/skills/loopx-material/`
 - `antigravity` -> `.agent/skills/loopx-material/`
 - `claude-code` -> `.claude/skills/loopx-material/`
+- `devin-cli` -> `.devin/skills/loopx-material/`
 - `kiro-cli` -> `.kiro/skills/loopx-material/`
 - `opencode` -> `.opencode/skills/loopx-material/`
 - `pi` -> `.pi/skills/loopx-material/`

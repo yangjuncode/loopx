@@ -19,6 +19,7 @@ from ..heartbeat_prequota import (
     render_heartbeat_pre_quota_markdown,
     run_heartbeat_pre_quota,
 )
+from ..devin_cli_goal_mode import DEVIN_CLI_BIN
 from ..kiro_cli_goal_mode import KIRO_CLI_BIN
 from ..paths import default_public_scan_root
 from ..registry import (
@@ -346,6 +347,7 @@ def handle_support_control_command(
                 codex_bin=getattr(args, "codex_bin", "codex"),
                 claude_bin=getattr(args, "claude_bin", "claude"),
                 kiro_cli_bin=getattr(args, "kiro_cli_bin", KIRO_CLI_BIN),
+                devin_cli_bin=getattr(args, "devin_cli_bin", DEVIN_CLI_BIN),
                 lark_cli_bin=getattr(args, "lark_cli_bin", None),
                 assets_dir=Path(args.assets_dir).expanduser().resolve()
                 if getattr(args, "assets_dir", None)

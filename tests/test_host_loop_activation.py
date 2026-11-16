@@ -182,6 +182,7 @@ def test_codex_ide_plugin_is_an_exact_host_type_with_visible_goal_activation() -
         ("claude-code", "claude_code"),
         ("kunluncode", "kunluncode"),
         ("kiro-cli", "kiro_cli"),
+        ("devin-cli", "generic_cli"),
         ("opencode", "generic_cli"),
         ("traex-cli", "generic_cli"),
         ("pi", "generic_cli"),

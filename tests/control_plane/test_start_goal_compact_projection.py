@@ -2252,11 +2252,11 @@ def test_cli_without_host_returns_read_only_host_selection_gate(
     ]
     gate = payload["host_surface_selection_gate"]
     assert gate["choice_projection"] == "compact"
-    assert gate["omitted_choice_count"] == 14
+    assert gate["omitted_choice_count"] == 15
     assert "--include-command-pack-detail" in gate["full_choices_detail_command"]
     assert payload["packet_summary"]["compatibility"]["compact_projection_default"] is True
     assert "Choose Where This Agent Runs" in payload["message"]
-    assert "Need another host (14 more)?" in payload["message"]
+    assert "Need another host (15 more)?" in payload["message"]
 
     detailed_output = io.StringIO()
     with contextlib.redirect_stdout(detailed_output):
@@ -2281,6 +2281,7 @@ def test_cli_without_host_returns_read_only_host_selection_gate(
         "agy",
         "antigravity-app",
         "kiro-cli",
+        "devin-cli",
         "deepseek-harness",
         "deepseek-harness-native",
         "ark-managed-agent",

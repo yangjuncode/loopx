@@ -7,6 +7,7 @@ def register_agent_runtime_arguments(
     parser: argparse.ArgumentParser,
     *,
     kiro_cli_bin: str,
+    devin_cli_bin: str,
 ) -> None:
     """Register the shared Agent runtime selectors for Chat and Dashboard."""
     parser.add_argument(
@@ -23,6 +24,11 @@ def register_agent_runtime_arguments(
         "--kiro-cli-bin",
         default=kiro_cli_bin,
         help="Kiro CLI executable used for read-only ACP Agent sessions (`<bin> acp`).",
+    )
+    parser.add_argument(
+        "--devin-cli-bin",
+        default=devin_cli_bin,
+        help="Devin CLI executable used for ACP Agent sessions (`<bin> --permission-mode auto acp`).",
     )
     parser.add_argument(
         "--lark-cli-bin",

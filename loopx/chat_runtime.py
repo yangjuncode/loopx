@@ -62,6 +62,12 @@ from .file_lock import (
     _lock_id, lock_holder_host_label, lock_holder_liveness, process_is_alive, try_exclusive_file_lock,
     exclusive_cross_runtime_file_lock,
 )
+from .devin_cli_goal_mode import (
+    DEVIN_CLI_BIN,
+    DEVIN_CLI_CHAT_AGENT_ID,
+    DEVIN_CLI_CHAT_AUTHENTICATION_NEXT_ACTION,
+    devin_cli_chat_command,
+)
 from .kiro_cli_goal_mode import (
     KIRO_CLI_BIN,
     KIRO_CLI_CHAT_AGENT_ID,
@@ -262,6 +268,7 @@ class ChatRuntimeController:
         codex_bin: str,
         claude_bin: str = "claude",
         kiro_cli_bin: str = KIRO_CLI_BIN,
+        devin_cli_bin: str = DEVIN_CLI_BIN,
         startup_timeout_sec: float | None = None,
         idle_timeout_sec: float = 180.0,
         hard_timeout_sec: float | None = None,
@@ -284,6 +291,7 @@ class ChatRuntimeController:
             or "~/.codex"
         ).expanduser().resolve()
         self.claude_bin, self.kiro_cli_bin = claude_bin, kiro_cli_bin
+        self.devin_cli_bin = devin_cli_bin
         self.acp_startup_timeout_sec = startup_timeout_sec
         self.startup_timeout_sec = 30.0 if startup_timeout_sec is None else startup_timeout_sec
         self.idle_timeout_sec = idle_timeout_sec
@@ -336,6 +344,7 @@ class ChatRuntimeController:
             codex_bin=self.codex_bin,
             claude_bin=self.claude_bin,
             kiro_cli_bin=self.kiro_cli_bin,
+            devin_cli_bin=self.devin_cli_bin,
             runtime_root=self.store.root.parent,
         )
         return [*builtins, *(endpoint.public_summary() for endpoint in self.endpoint_registry.list())]
@@ -497,6 +506,18 @@ class ChatRuntimeController:
                 hard_timeout_sec=self.hard_timeout_sec,
                 execution_mode=execution_mode,
                 config_values=agent_config,
+            )
+        if agent_id == DEVIN_CLI_CHAT_AGENT_ID:
+            return ACPStdioAdapter.start(
+                command=devin_cli_chat_command(self.devin_cli_bin),
+                work_dir=work_dir,
+                resume_thread_id=resume_thread_id,
+                startup_timeout_sec=self.acp_startup_timeout_sec,
+                idle_timeout_sec=self.idle_timeout_sec,
+                hard_timeout_sec=self.hard_timeout_sec,
+                execution_mode=execution_mode,
+                config_values=agent_config,
+                authentication_next_action=DEVIN_CLI_CHAT_AUTHENTICATION_NEXT_ACTION,
             )
         endpoint = self.endpoint_registry.get(agent_id)
         if endpoint is not None:

@@ -34,6 +34,7 @@ loopx project-skill install \
 | `codex` | `.agents/skills/<skill-id>/` |
 | `antigravity` | `.agent/skills/<skill-id>/` |
 | `claude-code` | `.claude/skills/<skill-id>/` |
+| `devin-cli` | `.devin/skills/<skill-id>/` |
 | `kiro-cli` | `.kiro/skills/<skill-id>/` |
 | `opencode` | `.opencode/skills/<skill-id>/` |
 | `pi` | `.pi/skills/<skill-id>/` |

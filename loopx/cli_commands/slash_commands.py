@@ -74,13 +74,15 @@ def register_slash_commands_command(
             "antigravity-app",
             "kiro",
             "kiro-cli",
+            "devin",
+            "devin-cli",
             "pi",
         ],
         help=(
             "Host surface to install. Repeatable. Defaults to static command facades "
             "for Codex, Claude Code, and OpenCode. `gemini`, `cursor`, `zcode`, "
-            "`agy`, `kiro-cli`, `pi` are opt-in: they write into those hosts' own "
-            "homes only when requested."
+            "`agy`, `kiro-cli`, `devin`, `pi` are opt-in: they write into those "
+            "hosts' own homes only when requested."
         ),
     )
     parser.add_argument(
@@ -139,6 +141,13 @@ def register_slash_commands_command(
         help="OpenCode config directory. Defaults to OPENCODE_CONFIG_DIR or ~/.config/opencode.",
     )
     parser.add_argument(
+        "--devin-home",
+        help=(
+            "Devin CLI config home for skill installation. Defaults to "
+            "$XDG_CONFIG_HOME/devin or ~/.config/devin."
+        ),
+    )
+    parser.add_argument(
         "--pi-project",
         default=".",
         help="Project directory for the Pi goal extension install. Defaults to the current directory.",
@@ -189,6 +198,7 @@ def handle_slash_commands_command(
             cursor_home=args.cursor_home,
             zcode_home=getattr(args, "zcode_home", None),
             agy_home=getattr(args, "agy_home", None),
+            devin_home=getattr(args, "devin_home", None),
             pi_project=args.pi_project,
             pi_scope=args.pi_scope,
         )

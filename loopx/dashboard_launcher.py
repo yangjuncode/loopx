@@ -12,6 +12,7 @@ import time
 from urllib.parse import quote
 import webbrowser
 
+from .devin_cli_goal_mode import DEVIN_CLI_BIN
 from .kiro_cli_goal_mode import KIRO_CLI_BIN
 from .release_manifest import release_runtime_identity
 
@@ -216,6 +217,7 @@ def launch_dashboard(
     codex_bin: str = "codex",
     claude_bin: str = "claude",
     kiro_cli_bin: str = KIRO_CLI_BIN,
+    devin_cli_bin: str = DEVIN_CLI_BIN,
     lark_cli_bin: str | None = None,
     assets_dir: Path | None = None,
     verbose: bool = False,
@@ -291,6 +293,7 @@ def launch_dashboard(
         codex_bin=codex_bin,
         claude_bin=claude_bin,
         kiro_cli_bin=kiro_cli_bin,
+        devin_cli_bin=devin_cli_bin,
         lark_cli_bin=lark_cli_bin,
         assets_dir=resolved_assets,
         verbose=verbose,

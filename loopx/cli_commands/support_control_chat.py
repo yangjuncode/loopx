@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ..chat_server import DEFAULT_CHAT_HOST, DEFAULT_CHAT_PORT
+from ..devin_cli_goal_mode import DEVIN_CLI_BIN
 from ..kiro_cli_goal_mode import KIRO_CLI_BIN
 from ..paths import default_public_scan_root
 from .support_control_agent_runtime import register_agent_runtime_arguments
@@ -53,6 +54,7 @@ def chat_server_options(
         "codex_bin": args.codex_bin,
         "claude_bin": args.claude_bin,
         "kiro_cli_bin": getattr(args, "kiro_cli_bin", KIRO_CLI_BIN),
+        "devin_cli_bin": getattr(args, "devin_cli_bin", DEVIN_CLI_BIN),
         "lark_cli_bin": args.lark_cli_bin,
         "startup_timeout_sec": (
             max(0.1, float(args.startup_timeout_seconds))
@@ -82,7 +84,9 @@ def register_chat_and_dashboard_commands(
         "--host", default=DEFAULT_CHAT_HOST, help="Loopback bind host."
     )
     chat_parser.add_argument("--port", type=int, default=DEFAULT_CHAT_PORT)
-    register_agent_runtime_arguments(chat_parser, kiro_cli_bin=KIRO_CLI_BIN)
+    register_agent_runtime_arguments(
+        chat_parser, kiro_cli_bin=KIRO_CLI_BIN, devin_cli_bin=DEVIN_CLI_BIN
+    )
     chat_parser.add_argument(
         "--startup-timeout-seconds",
         type=float,
@@ -171,7 +175,9 @@ def register_chat_and_dashboard_commands(
         "--host", default=DEFAULT_CHAT_HOST, help="Loopback bind host."
     )
     dashboard_parser.add_argument("--port", type=int, default=DEFAULT_CHAT_PORT)
-    register_agent_runtime_arguments(dashboard_parser, kiro_cli_bin=KIRO_CLI_BIN)
+    register_agent_runtime_arguments(
+        dashboard_parser, kiro_cli_bin=KIRO_CLI_BIN, devin_cli_bin=DEVIN_CLI_BIN
+    )
     dashboard_parser.add_argument(
         "--assets-dir",
         help="Optional LoopX Chat web bundle directory. Defaults to packaged assets.",

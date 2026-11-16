@@ -1042,7 +1042,7 @@ test("native terminal recovery adopts a result without Turn admission or lost fa
       gate: {kind: "response_metadata_invalid", summary: "Action metadata was not admitted"}}}, stop_observed: false}}).pending, true);
 });
 
-for (const endpoint of ["codex", "antigravity", "kiro-cli"]) {
+for (const endpoint of ["codex", "antigravity", "kiro-cli", "devin-cli"]) {
   test(`retained steward identity permits bound reads after selecting ${endpoint}`, () => {
     const actor = {schema_version: "loopx_steward_managed_actor_v0",
       goal_id: `steward-agent-${"8".repeat(24)}`, goal_instance_id: null, agent_id: "steward",

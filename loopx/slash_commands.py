@@ -80,6 +80,7 @@ def build_slash_command_catalog(
                     "agy": "native /goal + schedule wakes; quota entry advisory",
                     "antigravity-app": "schedule timer + sidecar heartbeat",
                     "kiro-cli": "native /goal loop; quota entry advisory",
+                    "devin-cli": "native same-session /goal loop; quota entry advisory (host pauses after 50 turns)",
                     "manual": "wire an external scheduler or run quota/status manually",
                     "other-agent": "use the custom host loop driver declared by `loopx agent-onboard`",
                 },

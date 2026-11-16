@@ -23,6 +23,11 @@ from ..control_plane.turn_driver.host_binding import (
     MANAGED_TURN_HOST,
     managed_executor_binding,
 )
+from ..devin_cli_goal_mode import (
+    DEVIN_CLI_CHAT_ADAPTER_KIND,
+    DEVIN_CLI_CHAT_AGENT_ID,
+    DEVIN_CLI_CHAT_DISPLAY_NAME,
+)
 from ..kiro_cli_goal_mode import (
     KIRO_CLI_CHAT_ADAPTER_KIND,
     KIRO_CLI_CHAT_AGENT_ID,
@@ -106,6 +111,7 @@ def builtin_chat_endpoints(
     codex_bin: str,
     claude_bin: str,
     kiro_cli_bin: str,
+    devin_cli_bin: str,
     runtime_root: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Return the built-in endpoints, managed host included.
@@ -171,6 +177,24 @@ def builtin_chat_endpoints(
             # Kiro owns its persistent permission rules. LoopX cancels
             # interactive ACP permission requests, but cannot turn an existing
             # host-level `allow` rule into a read-only sandbox.
+            "trust_scope": "workspace_write",
+            "source": "builtin",
+        },
+        {
+            # Devin CLI serves an ACP agent (`devin acp`), so it rides the same
+            # ACP adapter as Kiro. The launch command pins
+            # `--permission-mode auto` — read-only tools auto-approve,
+            # everything else stays an interactive request LoopX cancels — but
+            # the host's own allow rules and read commands are not a LoopX
+            # sandbox, so the row honestly scopes to workspace_write.
+            "agent_id": DEVIN_CLI_CHAT_AGENT_ID,
+            "display_name": DEVIN_CLI_CHAT_DISPLAY_NAME,
+            "adapter_kind": DEVIN_CLI_CHAT_ADAPTER_KIND,
+            **_executable_readiness(devin_cli_bin),
+            "streaming": True,
+            "resume": True,
+            "interrupt": True,
+            "tool_calls": True,
             "trust_scope": "workspace_write",
             "source": "builtin",
         },

@@ -407,6 +407,7 @@ def test_legacy_alias_retirement_keeps_native_slash_commands(
     ("gemini", "gemini_home", False),
     ("agy", "agy_home", True),
     ("kiro-cli", "kiro_home", False),
+    ("devin", "devin_home", False),
     ("cursor", "cursor_home", False),
     ("zcode", "zcode_home", False),
     ("opencode", "opencode_home", False),

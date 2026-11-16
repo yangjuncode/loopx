@@ -470,7 +470,8 @@ def test_available_first_agent_retains_its_real_eligibility_refusal(tmp_path, re
     endpoints.upsert(endpoint)
     controller = ChatRuntimeController(store=sessions, endpoint_registry=endpoints,
         codex_bin=str(tmp_path / "no-codex"), claude_bin=str(tmp_path / "no-claude"),
-        kiro_cli_bin=str(tmp_path / "no-kiro"))
+        kiro_cli_bin=str(tmp_path / "no-kiro"),
+        devin_cli_bin=str(tmp_path / "no-devin"))
     native_capabilities = controller.capabilities
     def capabilities():
         rows = native_capabilities()

@@ -142,6 +142,7 @@ def build_goal_start_contract(
                 "agy": "agy native /goal loop with schedule wakes; quota entry advisory",
                 "antigravity-app": "Antigravity App native schedule timer closed loop + sidecar.json heartbeat",
                 "kiro-cli": "Kiro CLI native /goal loop; quota entry advisory",
+                "devin-cli": "Devin CLI native same-session /goal loop; quota entry advisory, host pauses after 50 turns",
                 "deepseek-harness-native": "DeepSeek Harness same-session plugin driver; every turn enters through quota should-run",
                 "ark-managed-agent": "one-shot Goal",
                 "manual": "external scheduler or manual quota/status loop",

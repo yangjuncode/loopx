@@ -66,6 +66,7 @@ class ACPStdioAdapter:
     startup_timeout_sec: float = 30.0
     idle_timeout_sec: float = 180.0
     hard_timeout_sec: float | None = None
+    authentication_next_action: str | None = None
     # Grace window for the agent to exit on stdin EOF and release any
     # per-session lock before LoopX signals the process.
     _graceful_exit_timeout_sec: float = 5.0
@@ -92,6 +93,7 @@ class ACPStdioAdapter:
         hard_timeout_sec: float | None = None,
         execution_mode: bool = False,
         config_values: dict[str, str] | None = None,
+        authentication_next_action: str | None = None,
     ) -> "ACPStdioAdapter":
         if not command:
             raise ValueError("ACP command is required")
@@ -137,6 +139,7 @@ class ACPStdioAdapter:
             startup_timeout_sec=initialize_timeout_sec,
             idle_timeout_sec=idle_timeout_sec,
             hard_timeout_sec=hard_timeout_sec,
+            authentication_next_action=authentication_next_action,
         )
         try:
             initialized = adapter._request(
@@ -230,6 +233,25 @@ class ACPStdioAdapter:
                 "Check the owner-local ACP endpoint, then retry or start a new session.",
             ),
         )
+
+    def _as_authentication_error(self, error: Any) -> CodexChatAgentError | None:
+        """Project an explicit unauthenticated response into the injected
+        recovery action; any other response keeps the protocol_error path."""
+        next_action = self.authentication_next_action
+        if not next_action or not isinstance(error, dict):
+            return None
+        message = str(error.get("message") or "")
+        lowered = message.lower()
+        if "not authenticated" not in lowered and "authentication required" not in lowered:
+            return None
+        summary = "ACP Agent authentication is required."
+        exc = CodexChatAgentError(
+            summary,
+            error_code="authentication_required",
+            gate=_host_tool_gate(summary, next_action),
+        )
+        exc.native_error_info = {"code": error.get("code"), "message": message}
+        return exc
 
     def capabilities(self) -> dict[str, Any]:
         session_capabilities = self.agent_capabilities.get("sessionCapabilities")
@@ -427,6 +449,9 @@ class ACPStdioAdapter:
                         idle_deadline = time.monotonic() + idle_timeout_sec
                     if message.get("id") == selected_id and not message.get("method"):
                         if message.get("error"):
+                            auth_error = self._as_authentication_error(message.get("error"))
+                            if auth_error is not None:
+                                raise auth_error
                             raise self._runtime_error(f"ACP Agent rejected {method}.", error_code="protocol_error")
                         result = message.get("result")
                         return result if isinstance(result, dict) else {}

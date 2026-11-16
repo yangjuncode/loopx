@@ -35,6 +35,7 @@ from .control_plane.coordination.local_authority import LocalCoordinationAuthori
 from .control_plane.todos.contract import TODO_DECISION_OUTCOME_VALUES
 from .history import load_registry
 from .host_loop_activation import build_host_loop_activation_packet
+from .devin_cli_goal_mode import DEVIN_CLI_CHAT_AGENT_ID
 from .kiro_cli_goal_mode import KIRO_CLI_CHAT_AGENT_ID
 from .paths import resolve_runtime_root
 from .public_safe_text import OPAQUE_ID_PATTERN as _OPAQUE_ID
@@ -60,6 +61,7 @@ _AGENT_FAMILY_ROOTS: tuple[tuple[str, str], ...] = (
     ("codex", "codex"),
     ("claude", "claude-code"),
     ("kiro", KIRO_CLI_CHAT_AGENT_ID),
+    ("devin", DEVIN_CLI_CHAT_AGENT_ID),
 )
 _MONITOR_CADENCE = re.compile(
     r"^(?P<count>[1-9][0-9]{0,4})(?P<unit>s|m|h|d)$",

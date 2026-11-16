@@ -19,6 +19,10 @@ from .agy_goal_mode import (
     antigravity_config_home as _antigravity_config_home,
     build_antigravity_hooks_template,
 )
+from .devin_cli_goal_mode import (
+    SKILLS_ROOT_LABEL as _DEVIN_SKILLS_ROOT_LABEL,
+    devin_home as _devin_home,
+)
 from .kiro_cli_goal_mode import (
     KIRO_CLI_MCP_CONFIG_SUBPATH as _KIRO_MCP_CONFIG_SUBPATH,
     SKILLS_ROOT_LABEL as _KIRO_SKILLS_ROOT_LABEL,
@@ -199,7 +203,7 @@ def _command_prompt_specs(*, cli_bin: str, include_legacy_aliases: bool) -> list
             "argument_hint": "[--fine-grained] [--new-peer] [--capability-route issue-fix] [task text]",
             "instructions": [
                 "Visible command arguments: `$ARGUMENTS`.",
-                "Identify the exact current host surface (codex-app, trae_app, codex-app-ssh, codex-ide-plugin, codex-cli-tui, opencode, opencode2, traex-cli, pi, gemini-cli, cursor-agent, zcode, agy, kiro-cli, deepseek-harness, or ark-managed-agent).",
+                "Identify the exact current host surface (codex-app, trae_app, codex-app-ssh, codex-ide-plugin, codex-cli-tui, opencode, opencode2, traex-cli, pi, gemini-cli, cursor-agent, zcode, agy, kiro-cli, devin-cli, deepseek-harness, or ark-managed-agent).",
                 _loopx_start_goal_arguments_instruction(
                     cli_bin=cli_bin,
                     host_surface=None,
@@ -715,6 +719,8 @@ def _normalize_surfaces(surfaces: list[str] | None) -> list[str]:
             candidates = ["antigravity-app"]
         elif surface in {"kiro", "kiro-cli", "kirocli"}:
             candidates = ["kiro-cli"]
+        elif surface in {"devin", "devin-cli", "devin_cli"}:
+            candidates = ["devin"]
         else:
             candidates = [surface]
         for candidate in candidates:
@@ -1010,6 +1016,7 @@ def install_slash_commands(
     zcode_agents_home: str | None = None,
     agy_home: str | None = None,
     kiro_home: str | None = None,
+    devin_home: str | None = None,
     pi_project: str | None = None,
     pi_scope: str = "project",
     pi_user_home: str | None = None,
@@ -1028,6 +1035,7 @@ def install_slash_commands(
     agy_root = _agy_home(agy_home)
     agy_config_root = _antigravity_config_home(agy_home)
     kiro_root = _kiro_home(kiro_home)
+    devin_root = _devin_home(devin_home)
     if pi_scope not in {"project", "user"}:
         raise ValueError("pi_scope must be 'project' or 'user'")
     pi_project_root = Path(pi_project or ".").expanduser().resolve()
@@ -1364,6 +1372,26 @@ def install_slash_commands(
                 "status": status,
                 "invoke_as": [],
             }
+        )
+
+    if "devin" in effective_surfaces:
+        # Devin CLI discovers global skills from
+        # $XDG_CONFIG_HOME/devin/skills/<name>/SKILL.md (default
+        # ~/.config/devin/skills) and exposes each as a `/<skill-name>` slash
+        # command. XDG_CONFIG_HOME is the documented override for that global
+        # root, so the resolver honours it: installing into ~/.config while the
+        # active root lives elsewhere would report a success the running host
+        # never discovers.
+        _install_skill_facade(
+            specs=facade_specs,
+            installed=installed,
+            skills_dir=devin_root / "skills",
+            surface="devin",
+            host_surfaces=["devin-cli"],
+            mechanism="devin_cli_skills",
+            execute=execute,
+            uninstall=uninstall,
+            invoke_prefix="/",
         )
 
     if "cursor" in effective_surfaces:
@@ -1744,6 +1772,7 @@ def install_slash_commands(
             ),
             "kiro_cli_skill_dir": str(kiro_root / "skills") if "kiro-cli" in effective_surfaces else None,
             "kiro_cli_mcp_path": str(kiro_root / _KIRO_MCP_CONFIG_SUBPATH) if "kiro-cli" in effective_surfaces else None,
+            "devin_cli_skill_dir": str(devin_root / "skills") if "devin" in effective_surfaces else None,
             "opencode_skill_dir": str(opencode_root / "skills") if "opencode" in effective_surfaces else None,
             "opencode_command_dir": str(opencode_root / "commands") if "opencode" in effective_surfaces else None,
             "opencode_plugin_path": str(opencode_root / "plugins" / "loopx-goal.js") if "opencode" in effective_surfaces and with_goal_bridge else None,
@@ -1770,6 +1799,7 @@ def install_slash_commands(
             "ZCode discovers user skills from ZCODE_HOME/skills (default ~/.zcode/skills) and exposes each skill for invocation via `$skill-name` or Settings -> Skills.",
             "Antigravity CLI discovers global skills from the fixed ~/.gemini/antigravity-cli/skills root using the documented flat layout (one <name>.md per skill); the agy surface is opt-in and offers no home override because the host documents none.",
             f"Kiro CLI discovers global skills from {_KIRO_SKILLS_ROOT_LABEL}/<name>/SKILL.md (default ~/.kiro/skills) and exposes each as a `/<skill-name>` slash command; the kiro-cli surface is opt-in and resolves KIRO_HOME so install and uninstall target the profile the running host reads. Kiro resolves .kiro/prompts and KIRO_HOME/prompts before skills, so a same-named user prompt shadows the managed skill. The kiro-cli surface also registers the LoopX MCP server in KIRO_HOME/settings/mcp.json; it acts only for a session whose KIRO_SESSION_ID start-goal bound to a registered agent.",
+            f"Devin CLI discovers global skills from $XDG_CONFIG_HOME/devin/skills/<name>/SKILL.md (default {_DEVIN_SKILLS_ROOT_LABEL}) and exposes each as a `/<skill-name>` slash command; the devin surface is opt-in and resolves XDG_CONFIG_HOME so install and uninstall target the root the running host reads.",
             "OpenCode discovers global skills from OPENCODE_CONFIG_DIR/skills in addition to the static command facade; a command is typed by the user, a skill can be reached by the model itself.",
             "The default all surface installs only OpenCode's static command facade; the executable goal bridge requires --with-goal-bridge.",
             f"The Pi surface is opt-in and installs the self-contained goal extension and its loop runtime into {pi_target_note}; it is not part of the default all surface.",
@@ -1797,6 +1827,7 @@ def render_slash_command_install_markdown(payload: dict[str, Any]) -> str:
     cursor_skill_dir = payload.get("summary", {}).get("cursor_skill_dir")
     zcode_skill_dir = payload.get("summary", {}).get("zcode_skill_dir")
     kiro_cli_skill_dir = payload.get("summary", {}).get("kiro_cli_skill_dir")
+    devin_cli_skill_dir = payload.get("summary", {}).get("devin_cli_skill_dir")
     opencode_command_dir = payload.get("summary", {}).get("opencode_command_dir")
     opencode_plugin_path = payload.get("summary", {}).get("opencode_plugin_path")
     if codex_prompt_dir:
@@ -1813,6 +1844,8 @@ def render_slash_command_install_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"- zcode skills: `{zcode_skill_dir}`")
     if kiro_cli_skill_dir:
         lines.append(f"- kiro-cli skills: `{kiro_cli_skill_dir}`")
+    if devin_cli_skill_dir:
+        lines.append(f"- devin skills: `{devin_cli_skill_dir}`")
     if opencode_command_dir:
         lines.append(f"- opencode commands: `{opencode_command_dir}`")
     if opencode_plugin_path:

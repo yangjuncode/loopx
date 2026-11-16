@@ -12,6 +12,7 @@ from typing import Any
 
 from .chat_store import utc_now
 from .file_lock import exclusive_file_lock, write_json_atomic
+from .devin_cli_goal_mode import DEVIN_CLI_CHAT_AGENT_ID
 from .kiro_cli_goal_mode import KIRO_CLI_CHAT_AGENT_ID
 
 
@@ -27,6 +28,7 @@ RESERVED_AGENT_IDS = {
     "anthropic-api",
     "openai-api",
     KIRO_CLI_CHAT_AGENT_ID,
+    DEVIN_CLI_CHAT_AGENT_ID,
 }
 SUPPORTED_TRANSPORTS = {"stdio"}
 SUPPORTED_LOCATIONS = {"local", "remote"}

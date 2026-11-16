@@ -15,6 +15,7 @@ def _rows(monkeypatch, tmp_path: Path, **bins: str) -> dict[str, dict]:
         codex_bin=bins.get("codex_bin", "definitely-missing-codex"),
         claude_bin=bins.get("claude_bin", "definitely-missing-claude"),
         kiro_cli_bin=bins.get("kiro_cli_bin", "definitely-missing-kiro"),
+        devin_cli_bin=bins.get("devin_cli_bin", "definitely-missing-devin"),
         runtime_root=tmp_path,
     )
     return {row["agent_id"]: row for row in rows}

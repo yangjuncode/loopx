@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import sys
@@ -8,6 +9,7 @@ from typing import Any
 import pytest
 
 from loopx.chat_acp import ACP_INITIALIZE_TIMEOUT_DEFAULT_SEC, ACPStdioAdapter
+from loopx.chat_agent import CodexChatAgentError
 from loopx.chat_endpoints import AgentEndpointRegistry
 from loopx.chat_runtime import ChatRuntimeController
 from loopx.chat_store import ChatSessionStore
@@ -102,6 +104,98 @@ def _assert_reaped(adapters: list[ACPStdioAdapter]) -> None:
     assert process.poll() is not None
     with pytest.raises(ProcessLookupError):
         os.kill(process.pid, 0)
+
+
+ERROR_SESSION_ACP = r"""
+import json
+import sys
+
+error_payload = json.loads(sys.argv[1])
+for line in sys.stdin:
+    request = json.loads(line)
+    method = request.get("method")
+    request_id = request.get("id")
+    if method == "initialize":
+        result = {"protocolVersion": 1, "agentCapabilities": {}}
+    elif method == "initialized":
+        continue
+    elif method == "session/new":
+        print(json.dumps({"jsonrpc": "2.0", "id": request_id, "error": error_payload}), flush=True)
+        continue
+    elif method == "session/close":
+        result = {}
+    else:
+        continue
+    print(json.dumps({"jsonrpc": "2.0", "id": request_id, "result": result}), flush=True)
+"""
+
+UNAUTHENTICATED_ACP_ERROR = {
+    "code": -32000,
+    "message": "ACP host has not authenticated. Call the authenticate ACP method first.",
+    "data": {"meta.api_key": "sk-fixture-must-not-relay"},
+}
+
+
+def _error_command(tmp_path: Path, *, name: str, error: dict[str, Any]) -> tuple[str, ...]:
+    agent = tmp_path / f"{name}-acp.py"
+    agent.write_text(ERROR_SESSION_ACP, encoding="utf-8")
+    return (sys.executable, str(agent), json.dumps(error))
+
+
+def test_acp_unauthenticated_response_projects_injected_recovery(
+    tmp_path: Path,
+) -> None:
+    command = _error_command(tmp_path, name="unauth", error=UNAUTHENTICATED_ACP_ERROR)
+    with pytest.raises(CodexChatAgentError) as excinfo:
+        ACPStdioAdapter.start(
+            command=command,
+            work_dir=tmp_path,
+            authentication_next_action="Run the documented host login, then retry.",
+        )
+    error = excinfo.value
+    assert str(error) == "ACP Agent authentication is required."
+    assert error.error_code == "authentication_required"
+    assert error.gate == {
+        "kind": "host_tool_gate",
+        "summary": "ACP Agent authentication is required.",
+        "next_action": "Run the documented host login, then retry.",
+    }
+    assert error.native_error_info == {
+        "code": -32000,
+        "message": "ACP host has not authenticated. Call the authenticate ACP method first.",
+    }
+
+
+def test_acp_unauthenticated_response_without_recovery_stays_protocol_error(
+    tmp_path: Path,
+) -> None:
+    command = _error_command(tmp_path, name="unauth-plain", error=UNAUTHENTICATED_ACP_ERROR)
+    with pytest.raises(CodexChatAgentError) as excinfo:
+        ACPStdioAdapter.start(command=command, work_dir=tmp_path)
+    error = excinfo.value
+    assert str(error) == "ACP Agent rejected session/new."
+    assert error.error_code == "protocol_error"
+    assert error.native_error_info is None
+
+
+def test_acp_other_protocol_error_stays_protocol_error_even_with_recovery(
+    tmp_path: Path,
+) -> None:
+    command = _error_command(
+        tmp_path,
+        name="other-error",
+        error={"code": -32601, "message": "Method not found."},
+    )
+    with pytest.raises(CodexChatAgentError) as excinfo:
+        ACPStdioAdapter.start(
+            command=command,
+            work_dir=tmp_path,
+            authentication_next_action="Run the documented host login, then retry.",
+        )
+    error = excinfo.value
+    assert str(error) == "ACP Agent rejected session/new."
+    assert error.error_code == "protocol_error"
+    assert error.native_error_info is None
 
 
 def test_acp_default_and_larger_session_startup_windows_accept_slow_peer(

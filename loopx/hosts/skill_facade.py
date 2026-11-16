@@ -22,6 +22,11 @@ from ..agy_goal_mode import (
     agy_activation_extras,
     antigravity_app_activation_extras,
 )
+from ..devin_cli_goal_mode import (
+    DEVIN_CLI_INSTALL_SURFACE,
+    SKILLS_ROOT_LABEL as DEVIN_CLI_SKILLS_ROOT_LABEL,
+    devin_cli_activation_extras,
+)
 from ..kiro_cli_goal_mode import (
     KIRO_CLI_INSTALL_SURFACE,
     SKILLS_ROOT_LABEL as KIRO_CLI_SKILLS_ROOT_LABEL,
@@ -199,4 +204,16 @@ def kiro_cli_activation(commands: dict[str, str], cli_bin: str) -> dict[str, Any
         install_surface=KIRO_CLI_INSTALL_SURFACE,
         skills_root=KIRO_CLI_SKILLS_ROOT_LABEL,
         **kiro_cli_activation_extras(),
+    )
+
+
+def devin_cli_activation(commands: dict[str, str], cli_bin: str) -> dict[str, Any]:
+    return skill_facade_cli_activation(
+        commands,
+        cli_bin,
+        host_label="Devin CLI",
+        host_surface="devin_cli_native_goal_mode",
+        install_surface=DEVIN_CLI_INSTALL_SURFACE,
+        skills_root=DEVIN_CLI_SKILLS_ROOT_LABEL,
+        **devin_cli_activation_extras(),
     )

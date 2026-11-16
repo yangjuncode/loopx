@@ -20,6 +20,7 @@ PROJECT_SKILL_SURFACE_ROOTS = {
     "codex": Path(".agents") / "skills",
     "antigravity": Path(".agent") / "skills",
     "claude-code": Path(".claude") / "skills",
+    "devin-cli": Path(".devin") / "skills",
     "kiro-cli": Path(".kiro") / "skills",
     "opencode": Path(".opencode") / "skills",
     "pi": Path(".pi") / "skills",

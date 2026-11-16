@@ -16,6 +16,15 @@ from .host_loop_activation import (
 )
 from .history import load_registry
 from .install_contract import NO_CLONE_INSTALL_URL
+from .devin_cli_goal_mode import (
+    DEVIN_CLI_GOAL_CLEAR_COMMAND,
+    DEVIN_CLI_GOAL_COMMAND,
+    DEVIN_CLI_GOAL_MAX_TURNS,
+    DEVIN_CLI_GOAL_RESUME_COMMAND,
+)
+from .devin_cli_goal_mode import (
+    SKILLS_ROOT_LABEL as DEVIN_CLI_SKILLS_ROOT_LABEL,
+)
 from .kiro_cli_goal_mode import (
     KIRO_CLI_GOAL_CLEAR_COMMAND,
     KIRO_CLI_GOAL_COMPLETION_TOOL,
@@ -68,6 +77,8 @@ def _surface_install_command(agent_type: str, cli_bin: str, project: str) -> str
         return f"{host_command(cli_bin)} slash-commands --install --surface antigravity-app"
     if agent_type == "kiro-cli":
         return f"{host_command(cli_bin)} slash-commands --install --surface kiro-cli"
+    if agent_type == "devin-cli":
+        return f"{host_command(cli_bin)} slash-commands --install --surface devin"
     if agent_type == "pi":
         # The slash-commands installer resolves the Pi extension target through
         # --pi-project; pass the resolved project so the command stays correct
@@ -301,6 +312,7 @@ def _bootstrap_pack_command(
         "agy": "agy",
         "antigravity-app": "antigravity-app",
         "kiro-cli": "kiro-cli",
+        "devin-cli": "devin-cli",
         "deepseek-harness": "deepseek-harness",
         "deepseek-harness-native": "deepseek-harness-native",
         "ark-managed-agent": "ark-managed-agent",
@@ -399,6 +411,19 @@ def _start_instruction(agent_type: str) -> str:
             f"should-run`, and settle through the built-in "
             f"`{KIRO_CLI_GOAL_COMPLETION_TOOL}` tool only after LoopX writeback "
             f"so its completion contract cites the same evidence."
+        )
+    if agent_type == "devin-cli":
+        return (
+            f"Run `/loopx <task>` (the LoopX skill installed in "
+            f"`{DEVIN_CLI_SKILLS_ROOT_LABEL}`); after todo writeback, the user "
+            f"or the current host sets the native `{DEVIN_CLI_GOAL_COMMAND} "
+            "<task_body>` in this Devin CLI session so the same session keeps "
+            "working the objective across turns until it reports complete or "
+            f"blocked (the host pauses a run after {DEVIN_CLI_GOAL_MAX_TURNS} "
+            f"turns; `{DEVIN_CLI_GOAL_RESUME_COMMAND}` continues an interrupted "
+            f"goal and `{DEVIN_CLI_GOAL_CLEAR_COMMAND}` drops it). Start every "
+            "turn and native goal continuation with `quota should-run` — "
+            "advisory pacing, not a host-enforced gate."
         )
     if agent_type == "deepseek-harness":
         return (
